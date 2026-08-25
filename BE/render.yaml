@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: scc-baobi-api
+    runtime: node
+    rootDir: BE
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: CORS_ORIGIN
+        sync: false
