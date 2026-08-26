@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -25,11 +26,12 @@ const LO_SELECT = `
   JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
 `;
 
-// GET /api/lo - danh sách lô, lọc theo ma_vat_tu / so_lo
+// GET /api/lo - danh sách lô, lọc theo ma_vat_tu / so_lo, co phan trang (mac dinh 15/trang)
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const { ma_vat_tu, so_lo } = req.query;
+    const { page, limit, offset } = getPagination(req.query);
     const conditions = [];
     const params = [];
 
@@ -43,11 +45,18 @@ router.get(
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const result = await pool.query(
-      `${LO_SELECT} ${where} ORDER BY l.id DESC`,
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM Lo l ${where}`,
       params
     );
-    res.json(result.rows);
+    const total = Number(countResult.rows[0].count);
+
+    const dataResult = await pool.query(
+      `${LO_SELECT} ${where} ORDER BY l.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+    res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
   })
 );
 

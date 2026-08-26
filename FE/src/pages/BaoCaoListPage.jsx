@@ -1,23 +1,32 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatSoLuong } from '../format';
 import { listBaoCao, deleteBaoCao, ganLoiChuan } from '../api/baocaoApi';
 import { listVatTu } from '../api/vattuApi';
+import { listLo } from '../api/loApi';
 import { listLoaiLoi } from '../api/loailoiApi';
 import { listNhanSu } from '../api/nhansuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../hooks/useAuth';
 import Alert from '../components/Alert';
+import Pagination from '../components/Pagination';
+import VatTuFilterFields from '../components/VatTuFilterFields';
+import SearchableSelect from '../components/SearchableSelect';
+import TruncatedText from '../components/TruncatedText';
+import { ALL_LIMIT, PAGE_SIZE } from '../constants';
+import { loValue, loLabel } from '../selectHelpers';
 
 const emptyFilters = {
   tu_ngay: '',
   den_ngay: '',
   ma_vat_tu: '',
+  lo_id: '',
   la_lua_lai: '',
   nguoi_nhap_id: '',
   nhansu_id: '',
   page: 1,
-  limit: 20,
+  limit: PAGE_SIZE,
 };
 
 export default function BaoCaoListPage() {
@@ -31,6 +40,7 @@ export default function BaoCaoListPage() {
       filters.tu_ngay,
       filters.den_ngay,
       filters.ma_vat_tu,
+      filters.lo_id,
       filters.la_lua_lai,
       filters.nguoi_nhap_id,
       filters.nhansu_id,
@@ -38,15 +48,23 @@ export default function BaoCaoListPage() {
       filters.limit,
     ]
   );
-  const { data: vatTuList } = useFetch(listVatTu, []);
-  const { data: loaiLoiList } = useFetch(listLoaiLoi, []);
-  const { data: nhanSuList } = useFetch(listNhanSu, []);
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
+  const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
+  const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
+  const loaiLoiList = loaiLoiData?.data;
+  const nhanSuList = nhanSuData?.data;
+  const loList = filters.ma_vat_tu
+    ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
+    : loData?.data || [];
 
   function cleanParams(f) {
     const p = { page: f.page, limit: f.limit };
     if (f.tu_ngay) p.tu_ngay = f.tu_ngay;
     if (f.den_ngay) p.den_ngay = f.den_ngay;
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
+    if (f.lo_id) p.lo_id = f.lo_id;
     if (f.la_lua_lai !== '') p.la_lua_lai = f.la_lua_lai;
     if (f.nguoi_nhap_id) p.nguoi_nhap_id = f.nguoi_nhap_id;
     if (f.nhansu_id) p.nhansu_id = f.nhansu_id;
@@ -98,16 +116,27 @@ export default function BaoCaoListPage() {
           <label>Đến ngày</label>
           <input type="date" value={filters.den_ngay} onChange={(e) => updateFilter({ den_ngay: e.target.value })} />
         </div>
-        <div className="field">
-          <label>Vật tư</label>
-          <select value={filters.ma_vat_tu} onChange={(e) => updateFilter({ ma_vat_tu: e.target.value })}>
-            <option value="">Tất cả</option>
-            {vatTuList?.map((v) => (
-              <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                {v.ma_vat_tu} - {v.ten_vat_tu}
-              </option>
-            ))}
-          </select>
+        <VatTuFilterFields
+          vatTuList={vatTuList}
+          value={filters.ma_vat_tu}
+          onChange={(v) => {
+            // doi vat tu thi bo chon lo cu neu lo do khong thuoc vat tu moi
+            const loMoiHopLe = !v || !filters.lo_id || (loData?.data || []).some(
+              (l) => String(l.id) === String(filters.lo_id) && l.ma_vat_tu === v
+            );
+            updateFilter({ ma_vat_tu: v, lo_id: loMoiHopLe ? filters.lo_id : '' });
+          }}
+        />
+        <div className="field" style={{ minWidth: 220 }}>
+          <label>Số lô</label>
+          <SearchableSelect
+            options={loList}
+            getValue={loValue}
+            getLabel={loLabel}
+            value={filters.lo_id}
+            onChange={(v) => updateFilter({ lo_id: v })}
+            placeholder="Gõ số lô..."
+          />
         </div>
         <div className="field">
           <label>Loại báo cáo</label>
@@ -175,8 +204,9 @@ export default function BaoCaoListPage() {
                 <tr>
                   <th>ID</th>
                   <th>Ngày</th>
+                  <th>Mã vật tư</th>
+                  <th>Tên vật tư</th>
                   <th>Số lô</th>
-                  <th>Vật tư</th>
                   <th>Đạt</th>
                   <th>Hư bỏ</th>
                   <th>Tổng lựa</th>
@@ -193,13 +223,12 @@ export default function BaoCaoListPage() {
                   <tr key={row.id}>
                     <td>{row.id}</td>
                     <td>{new Date(row.ngay).toLocaleDateString('vi-VN')}</td>
+                    <td>{row.ma_vat_tu}</td>
+                    <td className="wrap"><TruncatedText text={row.ten_vat_tu} maxLength={20} /></td>
                     <td>{row.so_lo}</td>
-                    <td className="wrap">
-                      {row.ma_vat_tu} - {row.ten_vat_tu}
-                    </td>
-                    <td>{row.dat}</td>
-                    <td>{row.hu_bo}</td>
-                    <td>{row.tong_lua}</td>
+                    <td>{formatSoLuong(row.dat)}</td>
+                    <td>{formatSoLuong(row.hu_bo)}</td>
+                    <td>{formatSoLuong(row.tong_lua)}</td>
                     <td>{row.nguoi_nhap_ho_ten}</td>
                     <td className="wrap">{row.nhansu_tham_gia.map((n) => n.ho_ten).join(', ')}</td>
                     <td className="wrap">{row.loi_nguoi_dung || '-'}</td>
@@ -228,7 +257,7 @@ export default function BaoCaoListPage() {
                       </td>
                     )}
                     <td>
-                      <div className="btn-group">
+                      <div className="row-actions">
                         {row.co_the_sua_xoa_hom_nay || isAdmin ? (
                           <>
                             <Link to={`/baocao/${row.id}/sua`} className="btn btn-sm">
@@ -257,27 +286,7 @@ export default function BaoCaoListPage() {
           )}
         </div>
 
-        {pagination && pagination.total_pages > 1 && (
-          <div className="pagination" style={{ padding: '0 20px 16px' }}>
-            <button
-              className="btn btn-sm"
-              disabled={pagination.page <= 1}
-              onClick={() => updateFilter({ page: pagination.page - 1 })}
-            >
-              Trước
-            </button>
-            <span>
-              Trang {pagination.page}/{pagination.total_pages}
-            </span>
-            <button
-              className="btn btn-sm"
-              disabled={pagination.page >= pagination.total_pages}
-              onClick={() => updateFilter({ page: pagination.page + 1 })}
-            >
-              Sau
-            </button>
-          </div>
-        )}
+        <Pagination pagination={pagination} onPageChange={(p) => updateFilter({ page: p })} />
       </div>
     </div>
   );

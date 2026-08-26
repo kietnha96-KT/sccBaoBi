@@ -5,20 +5,36 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
 
 const SAFE_COLUMNS = 'id, ho_ten, username, vai_tro, created_at';
 
-// GET /api/nhansu - danh sách nhân sự (mọi người đăng nhập đều xem được, để chọn khi nhập báo cáo)
+// GET /api/nhansu - danh sách nhân sự (mọi người đăng nhập đều xem được), co phan trang (mac dinh 15/trang)
+// ?search= tim theo ho_ten hoac username
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const result = await pool.query(
-      `SELECT ${SAFE_COLUMNS} FROM NhanSu ORDER BY ho_ten ASC`
+    const { search } = req.query;
+    const { page, limit, offset } = getPagination(req.query);
+
+    const params = [];
+    let where = '';
+    if (search) {
+      params.push(`%${search}%`);
+      where = `WHERE ho_ten ILIKE $${params.length} OR username ILIKE $${params.length}`;
+    }
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM NhanSu ${where}`, params);
+    const total = Number(countResult.rows[0].count);
+
+    const dataResult = await pool.query(
+      `SELECT ${SAFE_COLUMNS} FROM NhanSu ${where} ORDER BY ho_ten ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
-    res.json(result.rows);
+    res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
   })
 );
 

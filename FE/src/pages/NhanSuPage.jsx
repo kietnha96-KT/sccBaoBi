@@ -4,11 +4,18 @@ import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
+import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien' };
 
 export default function NhanSuPage() {
-  const { data, loading, error, reload } = useFetch(listNhanSu, []);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const { data, loading, error, reload } = useFetch(
+    () => listNhanSu({ page, limit: PAGE_SIZE, search: search || undefined }),
+    [page, search]
+  );
   const [modal, setModal] = useState(null); // 'create' | { edit: row } | { reset: row }
   const [form, setForm] = useState(emptyForm);
   const [resetPwd, setResetPwd] = useState('');
@@ -78,9 +85,23 @@ export default function NhanSuPage() {
       </h1>
       <Alert>{error}</Alert>
 
+      <div className="filter-bar">
+        <div className="field" style={{ minWidth: 220 }}>
+          <label>Tìm kiếm</label>
+          <input
+            placeholder="Tìm theo tên hoặc username..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-header">
-          <h2>Danh sách nhân sự</h2>
+          <h2>Danh sách nhân sự {data?.pagination ? `(${data.pagination.total})` : ''}</h2>
           <div className="btn-group">
             <button className="btn btn-sm" onClick={() => downloadExcel('/nhansu/export', {}, 'danh_sach_nhan_su.xlsx')}>
               Xuất Excel
@@ -106,7 +127,7 @@ export default function NhanSuPage() {
                 </tr>
               </thead>
               <tbody>
-                {data?.map((row) => (
+                {data?.data.map((row) => (
                   <tr key={row.id}>
                     <td>{row.id}</td>
                     <td>{row.ho_ten}</td>
@@ -118,7 +139,7 @@ export default function NhanSuPage() {
                     </td>
                     <td>{new Date(row.created_at).toLocaleDateString('vi-VN')}</td>
                     <td>
-                      <div className="btn-group">
+                      <div className="row-actions">
                         <button className="btn btn-sm" onClick={() => openEdit(row)}>
                           Sửa
                         </button>
@@ -139,10 +160,10 @@ export default function NhanSuPage() {
                     </td>
                   </tr>
                 ))}
-                {data?.length === 0 && (
+                {data?.data.length === 0 && (
                   <tr>
                     <td colSpan={6} className="empty-state">
-                      Chưa có nhân sự nào
+                      {search ? 'Không tìm thấy nhân sự phù hợp' : 'Chưa có nhân sự nào'}
                     </td>
                   </tr>
                 )}
@@ -150,6 +171,7 @@ export default function NhanSuPage() {
             </table>
           )}
         </div>
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
       {(modal === 'create' || modal?.edit) && (

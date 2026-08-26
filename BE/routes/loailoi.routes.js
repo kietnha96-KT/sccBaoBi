@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -14,22 +15,30 @@ const LOAILOI_SELECT = `
   JOIN VatTu v ON v.ma_vat_tu = ll.ma_vat_tu
 `;
 
-// GET /api/loailoi?ma_vat_tu=xxx
+// GET /api/loailoi?ma_vat_tu=xxx - co phan trang (mac dinh 15/trang)
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const { ma_vat_tu } = req.query;
+    const { page, limit, offset } = getPagination(req.query);
     const params = [];
     let where = '';
     if (ma_vat_tu) {
       params.push(ma_vat_tu);
       where = `WHERE ll.ma_vat_tu = $${params.length}`;
     }
-    const result = await pool.query(
-      `${LOAILOI_SELECT} ${where} ORDER BY v.ma_vat_tu, ll.ten_loi`,
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM LoaiLoi ll ${where}`,
       params
     );
-    res.json(result.rows);
+    const total = Number(countResult.rows[0].count);
+
+    const dataResult = await pool.query(
+      `${LOAILOI_SELECT} ${where} ORDER BY v.ma_vat_tu, ll.ten_loi LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+    res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
   })
 );
 

@@ -1,17 +1,31 @@
 import { useState } from 'react';
+import { formatSoLuong } from '../format';
 import { listLo, createLo, updateLo, deleteLo } from '../api/loApi';
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
+import VatTuFilterFields from '../components/VatTuFilterFields';
+import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 
 const emptyForm = { so_lo: '', ma_vat_tu: '', ngay_san_xuat: '', so_luong_lo: 0 };
 
 export default function LoPage() {
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ ma_vat_tu: '', so_lo: '' });
-  const { data, loading, error, reload } = useFetch(() => listLo(filters), [filters.ma_vat_tu, filters.so_lo]);
-  const { data: vatTuList } = useFetch(listVatTu, []);
+  const { data, loading, error, reload } = useFetch(
+    () => listLo({ ...filters, page, limit: PAGE_SIZE }),
+    [filters.ma_vat_tu, filters.so_lo, page]
+  );
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
+
+  function updateFilters(patch) {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
+  }
 
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -73,30 +87,24 @@ export default function LoPage() {
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <div className="field">
-          <label>Vật tư</label>
-          <select value={filters.ma_vat_tu} onChange={(e) => setFilters({ ...filters, ma_vat_tu: e.target.value })}>
-            <option value="">Tất cả</option>
-            {vatTuList?.map((v) => (
-              <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                {v.ma_vat_tu} - {v.ten_vat_tu}
-              </option>
-            ))}
-          </select>
-        </div>
+        <VatTuFilterFields
+          vatTuList={vatTuList}
+          value={filters.ma_vat_tu}
+          onChange={(v) => updateFilters({ ma_vat_tu: v })}
+        />
         <div className="field">
           <label>Số lô</label>
           <input
             placeholder="Tìm số lô..."
             value={filters.so_lo}
-            onChange={(e) => setFilters({ ...filters, so_lo: e.target.value })}
+            onChange={(e) => updateFilters({ so_lo: e.target.value })}
           />
         </div>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <h2>Danh sách lô</h2>
+          <h2>Danh sách lô {data?.pagination ? `(${data.pagination.total})` : ''}</h2>
           <div className="btn-group">
             <button className="btn btn-sm" onClick={() => downloadExcel('/lo/export', {}, 'danh_sach_lo.xlsx')}>
               Xuất Excel
@@ -113,8 +121,9 @@ export default function LoPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Mã vật tư</th>
+                  <th>Tên vật tư</th>
                   <th>Số lô</th>
-                  <th>Vật tư</th>
                   <th>Ngày SX</th>
                   <th>Số lượng lô</th>
                   <th>Đã lựa</th>
@@ -123,22 +132,21 @@ export default function LoPage() {
                 </tr>
               </thead>
               <tbody>
-                {data?.map((row) => (
+                {data?.data.map((row) => (
                   <tr key={row.id}>
+                    <td>{row.ma_vat_tu}</td>
+                    <td>{row.ten_vat_tu}</td>
                     <td>{row.so_lo}</td>
-                    <td className="wrap">
-                      {row.ma_vat_tu} - {row.ten_vat_tu}
-                    </td>
                     <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td>
-                    <td>{row.so_luong_lo}</td>
-                    <td>{row.da_lua}</td>
+                    <td>{formatSoLuong(row.so_luong_lo)}</td>
+                    <td>{formatSoLuong(row.da_lua)}</td>
                     <td>
                       <span className={`badge ${Number(row.con_lai) <= 0 ? 'badge-success' : 'badge-warning'}`}>
-                        {row.con_lai}
+                        {formatSoLuong(row.con_lai)}
                       </span>
                     </td>
                     <td>
-                      <div className="btn-group">
+                      <div className="row-actions">
                         <button className="btn btn-sm" onClick={() => openEdit(row)}>
                           Sửa
                         </button>
@@ -149,7 +157,7 @@ export default function LoPage() {
                     </td>
                   </tr>
                 ))}
-                {data?.length === 0 && (
+                {data?.data.length === 0 && (
                   <tr>
                     <td colSpan={7} className="empty-state">
                       Chưa có lô nào
@@ -160,6 +168,7 @@ export default function LoPage() {
             </table>
           )}
         </div>
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
       {(modal === 'create' || modal?.edit) && (
@@ -171,21 +180,12 @@ export default function LoPage() {
                 <label>Số lô</label>
                 <input value={form.so_lo} onChange={(e) => setForm({ ...form, so_lo: e.target.value })} required />
               </div>
-              <div className="field">
-                <label>Vật tư</label>
-                <select
-                  value={form.ma_vat_tu}
-                  onChange={(e) => setForm({ ...form, ma_vat_tu: e.target.value })}
-                  required
-                >
-                  <option value="">-- Chọn vật tư --</option>
-                  {vatTuList?.map((v) => (
-                    <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                      {v.ma_vat_tu} - {v.ten_vat_tu}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <VatTuFilterFields
+                vatTuList={vatTuList}
+                value={form.ma_vat_tu}
+                onChange={(v) => setForm({ ...form, ma_vat_tu: v })}
+                allowClear={false}
+              />
               <div className="field">
                 <label>Ngày sản xuất</label>
                 <input

@@ -20,6 +20,22 @@ const pLaLuaLaiDashboard = {
   schema: { type: 'string', enum: ['true', 'false', 'all'], default: 'false' },
   description: "'false' (mặc định) = loại báo cáo lựa lại; 'true' = chỉ báo cáo lựa lại; 'all' = gộp cả hai",
 };
+const pPage = { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } };
+const pLimit = {
+  name: 'limit',
+  in: 'query',
+  schema: { type: 'integer', default: 15, maximum: 3000 },
+  description: 'Mặc định 15/trang. Có thể truyền cao (vd 3000) để lấy gần như toàn bộ danh sách cho dropdown/select.',
+};
+const paginationMetaSchema = {
+  type: 'object',
+  properties: {
+    page: { type: 'integer' },
+    limit: { type: 'integer' },
+    total: { type: 'integer' },
+    total_pages: { type: 'integer' },
+  },
+};
 
 const spec = {
   openapi: '3.0.3',
@@ -37,6 +53,7 @@ const spec = {
     },
     schemas: {
       Error: { type: 'object', properties: { message: { type: 'string' } } },
+      PaginationMeta: paginationMetaSchema,
       NhanSu: {
         type: 'object',
         properties: {
@@ -52,6 +69,8 @@ const spec = {
         properties: {
           ma_vat_tu: { type: 'string' },
           ten_vat_tu: { type: 'string' },
+          loai: { type: 'string', nullable: true, description: 'Loại vật tư, text tự do, có thể để trống' },
+          thu_kho: { type: 'string', nullable: true, description: 'Tên thủ kho quản lý vật tư này (chỉ hiện trong trang quản trị)' },
         },
       },
       Lo: {
@@ -137,6 +156,27 @@ const spec = {
           tong_dat: { type: 'number' },
           tong_hu_bo: { type: 'number' },
           tong_lua: { type: 'number' },
+          ty_le_hu_bo_pct: { type: 'number', nullable: true },
+        },
+      },
+      DashboardNhanSuTheoVatTu: {
+        type: 'object',
+        description: 'Mỗi dòng = 1 nhân sự + 1 vật tư + 1 lô + 1 loại lỗi cụ thể (không gộp)',
+        properties: {
+          nhansu_id: { type: 'integer' },
+          ho_ten: { type: 'string' },
+          ma_vat_tu: { type: 'string' },
+          ten_vat_tu: { type: 'string' },
+          lo_id: { type: 'integer' },
+          so_lo: { type: 'string' },
+          loi_chuan_id: { type: 'integer' },
+          ten_loi: { type: 'string' },
+          so_bao_cao: { type: 'integer' },
+          nang_suat_tb: { type: 'number', nullable: true },
+          tong_dat: { type: 'number' },
+          tong_hu_bo: { type: 'number' },
+          tong_lua: { type: 'number' },
+          ty_le_hu_bo_pct: { type: 'number', nullable: true },
         },
       },
       DashboardVatTu: {
@@ -154,13 +194,20 @@ const spec = {
       },
       DashboardLoiTheoVatTu: {
         type: 'object',
+        description: 'Mỗi dòng = 1 lô cụ thể + 1 loại lỗi cụ thể (không gộp nhiều lô lại)',
         properties: {
           ma_vat_tu: { type: 'string' },
           ten_vat_tu: { type: 'string' },
+          lo_id: { type: 'integer' },
+          so_lo: { type: 'string', description: 'Số lô thật, lấy từ danh mục Lô' },
           loi_chuan_id: { type: 'integer' },
           ten_loi: { type: 'string' },
           so_bao_cao: { type: 'integer' },
+          nang_suat_tb: { type: 'number', nullable: true },
+          tong_dat: { type: 'number' },
           tong_hu_bo: { type: 'number' },
+          tong_lua: { type: 'number' },
+          ty_le_hu_bo_pct: { type: 'number', nullable: true },
         },
       },
       DashboardLo: {
@@ -282,8 +329,29 @@ const spec = {
     '/api/nhansu': {
       get: {
         tags: ['NhanSu'],
-        summary: 'Danh sách nhân sự (mọi người đăng nhập)',
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/NhanSu' } } } } }, 401: responses.Unauthorized },
+        summary: 'Danh sách nhân sự (mọi người đăng nhập), có phân trang + tìm kiếm',
+        parameters: [
+          pPage,
+          pLimit,
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Tìm theo họ tên hoặc username' },
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/NhanSu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+          401: responses.Unauthorized,
+        },
       },
       post: {
         tags: ['NhanSu'],
@@ -347,12 +415,44 @@ const spec = {
 
     // ---------- VATTU ----------
     '/api/vattu': {
-      get: { tags: ['VatTu'], summary: 'Danh sách vật tư', responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/VatTu' } } } } } } },
+      get: {
+        tags: ['VatTu'],
+        summary: 'Danh sách vật tư, có phân trang + tìm kiếm',
+        parameters: [
+          pPage,
+          pLimit,
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Tìm theo mã hoặc tên vật tư' },
+          { name: 'loai', in: 'query', schema: { type: 'string' }, description: 'Lọc đúng theo loại vật tư' },
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/VatTu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       post: {
         tags: ['VatTu'],
         summary: 'Admin tạo vật tư',
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'ten_vat_tu'], properties: { ma_vat_tu: { type: 'string' }, ten_vat_tu: { type: 'string' } } } } } },
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'ten_vat_tu'], properties: { ma_vat_tu: { type: 'string' }, ten_vat_tu: { type: 'string' }, loai: { type: 'string' }, thu_kho: { type: 'string' } } } } } },
         responses: { 201: { description: 'Đã tạo' }, 400: responses.BadRequest, 403: responses.Forbidden, 409: responses.Conflict },
+      },
+    },
+    '/api/vattu/loai-list': {
+      get: {
+        tags: ['VatTu'],
+        summary: 'Danh sách các giá trị "loại" khác nhau đang có (dùng đổ vào dropdown lọc)',
+        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { type: 'string' } } } } } },
       },
     },
     '/api/vattu/export': { get: { tags: ['VatTu'], summary: 'Xuất Excel danh mục vật tư (admin)', responses: { 200: { description: 'File Excel' }, 403: responses.Forbidden } } },
@@ -360,9 +460,9 @@ const spec = {
       get: { tags: ['VatTu'], summary: 'Chi tiết vật tư', parameters: [{ name: 'ma_vat_tu', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' }, 404: responses.NotFound } },
       put: {
         tags: ['VatTu'],
-        summary: 'Admin sửa tên vật tư',
+        summary: 'Admin sửa tên/loại/thủ kho vật tư',
         parameters: [{ name: 'ma_vat_tu', in: 'path', required: true, schema: { type: 'string' } }],
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ten_vat_tu'], properties: { ten_vat_tu: { type: 'string' } } } } } },
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ten_vat_tu'], properties: { ten_vat_tu: { type: 'string' }, loai: { type: 'string' }, thu_kho: { type: 'string' } } } } } },
         responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
       },
       delete: {
@@ -377,9 +477,24 @@ const spec = {
     '/api/lo': {
       get: {
         tags: ['Lo'],
-        summary: 'Danh sách lô (kèm da_lua / con_lai)',
-        parameters: [pMaVatTu, { name: 'so_lo', in: 'query', schema: { type: 'string' }, description: 'Tìm gần đúng theo số lô' }],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Lo' } } } } } },
+        summary: 'Danh sách lô (kèm da_lua / con_lai), có phân trang',
+        parameters: [pMaVatTu, { name: 'so_lo', in: 'query', schema: { type: 'string' }, description: 'Tìm gần đúng theo số lô' }, pPage, pLimit],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/Lo' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       post: {
         tags: ['Lo'],
@@ -424,9 +539,24 @@ const spec = {
     '/api/loailoi': {
       get: {
         tags: ['LoaiLoi'],
-        summary: 'Danh sách loại lỗi, lọc theo ma_vat_tu',
-        parameters: [pMaVatTu],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/LoaiLoi' } } } } } },
+        summary: 'Danh sách loại lỗi, lọc theo ma_vat_tu, có phân trang',
+        parameters: [pMaVatTu, pPage, pLimit],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/LoaiLoi' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       post: {
         tags: ['LoaiLoi'],
@@ -538,38 +668,159 @@ const spec = {
     '/api/dashboard/nhansu': {
       get: {
         tags: ['Dashboard'],
-        summary: 'Dashboard năng suất theo nhân sự',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/DashboardNhanSu' } } } } } },
+        summary: 'Dashboard năng suất theo nhân sự, có phân trang (15/trang). Lọc theo vật tư/lô/nhân sự sẽ chỉ trả về những gì khớp điều kiện.',
+        parameters: [
+          pTuNgay,
+          pDenNgay,
+          pMaVatTu,
+          { name: 'lo_id', in: 'query', schema: { type: 'integer' } },
+          { name: 'nhansu_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo 1 nhân sự cụ thể' },
+          { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo lỗi chuẩn admin đã gán (nên chọn kèm ma_vat_tu vì lỗi gắn theo từng vật tư)' },
+          pLaLuaLaiDashboard,
+          pPage,
+          pLimit,
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/DashboardNhanSu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                    summary: {
+                      type: 'object',
+                      description: 'Tổng hợp trên TOÀN BỘ kết quả đã lọc (không chỉ trang hiện tại)',
+                      properties: {
+                        tong_bao_cao: { type: 'integer' },
+                        nang_suat_cao_nhat: { type: 'number', nullable: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
-    '/api/dashboard/nhansu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/nhansu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/nhansu/vattu': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Breakdown theo vật tư + lô + loại lỗi cho từng nhân sự, có phân trang (15/trang)',
+        parameters: [
+          pTuNgay,
+          pDenNgay,
+          pMaVatTu,
+          { name: 'lo_id', in: 'query', schema: { type: 'integer' } },
+          { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } },
+          { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } },
+          pLaLuaLaiDashboard,
+          pPage,
+          pLimit,
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/DashboardNhanSuTheoVatTu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/dashboard/nhansu/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown theo vật tư + lô + loại lỗi cho từng nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
 
     '/api/dashboard/vattu': {
       get: {
         tags: ['Dashboard'],
-        summary: 'Dashboard năng suất theo vật tư',
-        parameters: [pTuNgay, pDenNgay, pLaLuaLaiDashboard, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo lỗi chuẩn admin đã gán' }],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/DashboardVatTu' } } } } } },
+        summary: 'Dashboard năng suất theo vật tư, có phân trang (15/trang)',
+        parameters: [
+          pTuNgay,
+          pDenNgay,
+          pLaLuaLaiDashboard,
+          { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo lỗi chuẩn admin đã gán' },
+          pMaVatTu,
+          { name: 'lo_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo 1 lô cụ thể' },
+          pPage,
+          pLimit,
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/DashboardVatTu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
-    '/api/dashboard/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo vật tư', parameters: [pTuNgay, pDenNgay, pLaLuaLaiDashboard, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo vật tư', parameters: [pTuNgay, pDenNgay, pLaLuaLaiDashboard, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'File Excel' } } } },
     '/api/dashboard/vattu/loi': {
       get: {
         tags: ['Dashboard'],
-        summary: 'Breakdown số lượng theo từng loại lỗi, theo vật tư',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/DashboardLoiTheoVatTu' } } } } } },
+        summary: 'Breakdown số lượng theo từng loại lỗi, theo vật tư (đầy đủ chỉ số như bảng chính), có phân trang (15/trang)',
+        parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard, pPage, pLimit],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/DashboardLoiTheoVatTu' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
-    '/api/dashboard/vattu/loi/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown lỗi theo vật tư', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/vattu/loi/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown lỗi theo vật tư', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
 
     '/api/dashboard/lo': {
       get: {
         tags: ['Dashboard'],
-        summary: 'Dashboard năng suất / tiến độ theo lô',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }],
-        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/DashboardLo' } } } } } },
+        summary: 'Dashboard năng suất / tiến độ theo lô, có phân trang (15/trang)',
+        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pPage, pLimit],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/DashboardLo' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     '/api/dashboard/lo/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo lô', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'File Excel' } } } },

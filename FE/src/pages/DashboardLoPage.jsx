@@ -2,20 +2,25 @@ import { useState } from 'react';
 import { dashboardTheoLo } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel } from '../api/client';
+import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
+import Pagination from '../components/Pagination';
+import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { SEQUENTIAL_BLUE } from '../chartColors';
 
 const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false' };
 
 export default function DashboardLoPage() {
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
   const { data, loading, error } = useFetch(
-    () => dashboardTheoLo(cleanParams(filters)),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai]
+    () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
+    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, page]
   );
-  const { data: vatTuList } = useFetch(listVatTu, []);
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
 
   function cleanParams(f) {
     const p = { la_lua_lai: f.la_lua_lai };
@@ -25,7 +30,12 @@ export default function DashboardLoPage() {
     return p;
   }
 
-  const rows = data || [];
+  function handleFilterChange(next) {
+    setFilters(next);
+    setPage(1);
+  }
+
+  const rows = data?.data || [];
 
   return (
     <div>
@@ -34,7 +44,7 @@ export default function DashboardLoPage() {
       </h1>
       <Alert>{error}</Alert>
 
-      <DashboardFilterBar filters={filters} setFilters={setFilters} vatTuList={vatTuList} />
+      <DashboardFilterBar filters={filters} setFilters={handleFilterChange} vatTuList={vatTuList} />
 
       <div className="card">
         <div className="card-header">
@@ -79,12 +89,12 @@ export default function DashboardLoPage() {
                             <div style={{ width: `${pct}%`, height: '100%', background: SEQUENTIAL_BLUE, borderRadius: 4 }} />
                           </div>
                           <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                            {daLua}/{soLuong} ({pct.toFixed(0)}%)
+                            {formatSoLuong(daLua)}/{formatSoLuong(soLuong)} ({pct.toFixed(0)}%)
                           </span>
                         </div>
                       </td>
-                      <td>{r.so_bao_cao}</td>
-                      <td>{r.nang_suat_tb ?? '-'}</td>
+                      <td>{formatSoLuong(r.so_bao_cao)}</td>
+                      <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
                     </tr>
                   );
                 })}
@@ -98,6 +108,7 @@ export default function DashboardLoPage() {
               </tbody>
             </table>
           )}
+          <Pagination pagination={data?.pagination} onPageChange={setPage} />
         </div>
       </div>
     </div>

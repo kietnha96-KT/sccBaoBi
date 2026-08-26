@@ -5,11 +5,24 @@ import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
+import VatTuFilterFields from '../components/VatTuFilterFields';
+import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 
 export default function LoaiLoiPage() {
+  const [page, setPage] = useState(1);
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
-  const { data, loading, error, reload } = useFetch(() => listLoaiLoi(maVatTuFilter || undefined), [maVatTuFilter]);
-  const { data: vatTuList } = useFetch(listVatTu, []);
+  const { data, loading, error, reload } = useFetch(
+    () => listLoaiLoi({ ma_vat_tu: maVatTuFilter || undefined, page, limit: PAGE_SIZE }),
+    [maVatTuFilter, page]
+  );
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
+
+  function handleFilterChange(v) {
+    setMaVatTuFilter(v);
+    setPage(1);
+  }
 
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '' });
@@ -65,22 +78,12 @@ export default function LoaiLoiPage() {
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <div className="field">
-          <label>Vật tư</label>
-          <select value={maVatTuFilter} onChange={(e) => setMaVatTuFilter(e.target.value)}>
-            <option value="">Tất cả</option>
-            {vatTuList?.map((v) => (
-              <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                {v.ma_vat_tu} - {v.ten_vat_tu}
-              </option>
-            ))}
-          </select>
-        </div>
+        <VatTuFilterFields vatTuList={vatTuList} value={maVatTuFilter} onChange={handleFilterChange} />
       </div>
 
       <div className="card">
         <div className="card-header">
-          <h2>Danh sách loại lỗi</h2>
+          <h2>Danh sách loại lỗi {data?.pagination ? `(${data.pagination.total})` : ''}</h2>
           <div className="btn-group">
             <button className="btn btn-sm" onClick={() => downloadExcel('/loailoi/export', {}, 'danh_muc_loi.xlsx')}>
               Xuất Excel
@@ -97,20 +100,20 @@ export default function LoaiLoiPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Vật tư</th>
+                  <th>Mã vật tư</th>
+                  <th>Tên vật tư</th>
                   <th>Tên lỗi</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {data?.map((row) => (
+                {data?.data.map((row) => (
                   <tr key={row.id}>
-                    <td>
-                      {row.ma_vat_tu} - {row.ten_vat_tu}
-                    </td>
+                    <td>{row.ma_vat_tu}</td>
+                    <td>{row.ten_vat_tu}</td>
                     <td className="wrap">{row.ten_loi}</td>
                     <td>
-                      <div className="btn-group">
+                      <div className="row-actions">
                         <button className="btn btn-sm" onClick={() => openEdit(row)}>
                           Sửa
                         </button>
@@ -121,7 +124,7 @@ export default function LoaiLoiPage() {
                     </td>
                   </tr>
                 ))}
-                {data?.length === 0 && (
+                {data?.data.length === 0 && (
                   <tr>
                     <td colSpan={3} className="empty-state">
                       Chưa có loại lỗi nào
@@ -132,6 +135,7 @@ export default function LoaiLoiPage() {
             </table>
           )}
         </div>
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
       {(modal === 'create' || modal?.edit) && (
@@ -139,22 +143,13 @@ export default function LoaiLoiPage() {
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="field">
-                <label>Vật tư</label>
-                <select
-                  value={form.ma_vat_tu}
-                  onChange={(e) => setForm({ ...form, ma_vat_tu: e.target.value })}
-                  disabled={modal !== 'create'}
-                  required
-                >
-                  <option value="">-- Chọn vật tư --</option>
-                  {vatTuList?.map((v) => (
-                    <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                      {v.ma_vat_tu} - {v.ten_vat_tu}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <VatTuFilterFields
+                vatTuList={vatTuList}
+                value={form.ma_vat_tu}
+                onChange={(v) => setForm({ ...form, ma_vat_tu: v })}
+                disabled={modal !== 'create'}
+                allowClear={false}
+              />
               <div className="field">
                 <label>Tên lỗi</label>
                 <input value={form.ten_loi} onChange={(e) => setForm({ ...form, ten_loi: e.target.value })} required />

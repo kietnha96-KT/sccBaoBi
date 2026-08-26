@@ -14,9 +14,11 @@ import {
 import { dashboardTheoThoiGian } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel } from '../api/client';
+import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
+import { ALL_LIMIT } from '../constants';
 import { CATEGORICAL, SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
 const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false', group_by: 'ngay' };
@@ -33,7 +35,8 @@ export default function DashboardThoiGianPage() {
     () => dashboardTheoThoiGian(cleanParams(filters)),
     [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.group_by]
   );
-  const { data: vatTuList } = useFetch(listVatTu, []);
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
 
   function cleanParams(f) {
     const p = { la_lua_lai: f.la_lua_lai, group_by: f.group_by };
@@ -159,11 +162,11 @@ export default function DashboardThoiGianPage() {
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{formatKy(r.ky, filters.group_by)}</td>
-                  <td>{r.so_bao_cao}</td>
-                  <td>{r.tong_dat}</td>
-                  <td>{r.tong_hu_bo}</td>
-                  <td>{r.tong_lua}</td>
-                  <td>{r.nang_suat_tb ?? '-'}</td>
+                  <td>{formatSoLuong(r.so_bao_cao)}</td>
+                  <td>{formatSoLuong(r.tong_dat)}</td>
+                  <td>{formatSoLuong(r.tong_hu_bo)}</td>
+                  <td>{formatSoLuong(r.tong_lua)}</td>
+                  <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
                 </tr>
               ))}
               {rows.length === 0 && (

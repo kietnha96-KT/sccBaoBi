@@ -5,9 +5,14 @@ import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhanSu } from '../api/nhansuApi';
 import { getErrorMessage } from '../api/client';
+import { formatSoLuong } from '../format';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
+import SearchableSelect from '../components/SearchableSelect';
+import VatTuFilterFields from '../components/VatTuFilterFields';
+import { ALL_LIMIT } from '../constants';
+import { loValue, loLabel } from '../selectHelpers';
 
 const todayStr = () => new Date().toISOString().substring(0, 10);
 
@@ -30,8 +35,10 @@ export default function BaoCaoFormPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: vatTuList } = useFetch(listVatTu, []);
-  const { data: nhanSuList } = useFetch(listNhanSu, []);
+  const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
+  const vatTuList = vatTuData?.data;
+  const nhanSuList = nhanSuData?.data;
 
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
   const [loList, setLoList] = useState([]);
@@ -73,7 +80,7 @@ export default function BaoCaoFormPage() {
 
   // nạp danh sách lô theo vật tư đang lọc
   useEffect(() => {
-    listLo(maVatTuFilter ? { ma_vat_tu: maVatTuFilter } : {}).then(setLoList);
+    listLo({ ma_vat_tu: maVatTuFilter || undefined, limit: ALL_LIMIT }).then((res) => setLoList(res.data));
   }, [maVatTuFilter]);
 
   const selectedLo = loList.find((l) => l.id === Number(form.lo_id)) || null;
@@ -146,37 +153,34 @@ export default function BaoCaoFormPage() {
               />
             </div>
 
-            <div className="field">
-              <label>Vật tư</label>
-              <select value={maVatTuFilter} onChange={(e) => { setMaVatTuFilter(e.target.value); setForm({ ...form, lo_id: '' }); }} disabled={disabled}>
-                <option value="">-- Chọn vật tư để lọc lô --</option>
-                {vatTuList?.map((v) => (
-                  <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                    {v.ma_vat_tu} - {v.ten_vat_tu}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <VatTuFilterFields
+              vatTuList={vatTuList}
+              value={maVatTuFilter}
+              onChange={(v) => {
+                setMaVatTuFilter(v);
+                setForm({ ...form, lo_id: '' });
+              }}
+              vatTuPlaceholder="Gõ mã hoặc tên vật tư để lọc lô..."
+              disabled={disabled}
+              showLoai={false}
+            />
 
             <div className="field">
               <label>Lô</label>
-              <select
+              <SearchableSelect
+                options={loList}
+                getValue={loValue}
+                getLabel={loLabel}
                 value={form.lo_id}
-                onChange={(e) => setForm({ ...form, lo_id: e.target.value })}
+                onChange={(v) => setForm({ ...form, lo_id: v })}
+                placeholder="Gõ số lô..."
                 disabled={disabled}
-                required
-              >
-                <option value="">-- Chọn lô --</option>
-                {loList.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.so_lo} ({l.ma_vat_tu}) - còn lại {l.con_lai}/{l.so_luong_lo}
-                  </option>
-                ))}
-              </select>
+                allowClear={false}
+              />
               {selectedLo && (
                 <span className="field-hint">
-                  Số lượng lô: {selectedLo.so_luong_lo} | Đã lựa: {selectedLo.da_lua} | Còn lại:{' '}
-                  <strong>{selectedLo.con_lai}</strong>
+                  Số lượng lô: {formatSoLuong(selectedLo.so_luong_lo)} | Đã lựa: {formatSoLuong(selectedLo.da_lua)} | Còn lại:{' '}
+                  <strong>{formatSoLuong(selectedLo.con_lai)}</strong>
                 </span>
               )}
             </div>

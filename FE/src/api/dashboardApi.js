@@ -2,6 +2,8 @@ import client from './client';
 
 export const dashboardTheoNhanSu = (params) =>
   client.get('/dashboard/nhansu', { params }).then((r) => r.data);
+export const dashboardNhanSuTheoVatTu = (params) =>
+  client.get('/dashboard/nhansu/vattu', { params }).then((r) => r.data);
 export const dashboardTheoVatTu = (params) =>
   client.get('/dashboard/vattu', { params }).then((r) => r.data);
 export const dashboardLoiTheoVatTu = (params) =>

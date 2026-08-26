@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -86,9 +87,7 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const { where, params } = buildFilters(req.query);
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = getPagination(req.query, { maxLimit: 200 });
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM BaoCao bc JOIN Lo l ON l.id = bc.lo_id ${where}`,
@@ -101,10 +100,7 @@ router.get(
       [...params, limit, offset]
     );
 
-    res.json({
-      data: dataResult.rows,
-      pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
-    });
+    res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
   })
 );
 

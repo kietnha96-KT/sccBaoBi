@@ -13,7 +13,9 @@ CREATE TABLE NhanSu (
 -- 2. BẢNG VẬT TƯ (danh mục vật tư)
 CREATE TABLE VatTu (
     ma_vat_tu   VARCHAR(20) PRIMARY KEY,
-    ten_vat_tu  VARCHAR(200) NOT NULL
+    ten_vat_tu  VARCHAR(200) NOT NULL,
+    loai        VARCHAR(100),   -- loại vật tư, text tự do, admin điền dần (có thể để trống)
+    thu_kho     VARCHAR(100)    -- tên thủ kho quản lý vật tư này, chỉ hiện trong trang quản trị của admin
 );
 
 -- 3. BẢNG LÔ (mỗi dòng = 1 lần phát sinh lô cho 1 vật tư cụ thể)

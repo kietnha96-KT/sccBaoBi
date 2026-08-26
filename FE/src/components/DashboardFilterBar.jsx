@@ -1,3 +1,6 @@
+import SearchableSelect from './SearchableSelect';
+import VatTuFilterFields from './VatTuFilterFields';
+
 // Thanh lọc dùng chung cho 4 trang dashboard: khoảng ngày, vật tư, lô, loại báo cáo (la_lua_lai)
 export default function DashboardFilterBar({ filters, setFilters, vatTuList, showLo, loList, extra }) {
   return (
@@ -11,29 +14,23 @@ export default function DashboardFilterBar({ filters, setFilters, vatTuList, sho
         <input type="date" value={filters.den_ngay} onChange={(e) => setFilters({ ...filters, den_ngay: e.target.value })} />
       </div>
       {vatTuList !== undefined && (
-        <div className="field">
-          <label>Vật tư</label>
-          <select value={filters.ma_vat_tu} onChange={(e) => setFilters({ ...filters, ma_vat_tu: e.target.value })}>
-            <option value="">Tất cả</option>
-            {vatTuList?.map((v) => (
-              <option key={v.ma_vat_tu} value={v.ma_vat_tu}>
-                {v.ma_vat_tu} - {v.ten_vat_tu}
-              </option>
-            ))}
-          </select>
-        </div>
+        <VatTuFilterFields
+          vatTuList={vatTuList}
+          value={filters.ma_vat_tu}
+          onChange={(v) => setFilters({ ...filters, ma_vat_tu: v })}
+        />
       )}
       {showLo && (
-        <div className="field">
+        <div className="field" style={{ minWidth: 220 }}>
           <label>Lô</label>
-          <select value={filters.lo_id || ''} onChange={(e) => setFilters({ ...filters, lo_id: e.target.value })}>
-            <option value="">Tất cả</option>
-            {loList?.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.so_lo}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            options={loList || []}
+            getValue={(l) => l.id}
+            getLabel={(l) => l.so_lo}
+            value={filters.lo_id || ''}
+            onChange={(v) => setFilters({ ...filters, lo_id: v })}
+            placeholder="Gõ số lô..."
+          />
         </div>
       )}
       <div className="field">
