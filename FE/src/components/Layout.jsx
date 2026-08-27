@@ -66,6 +66,9 @@ export default function Layout() {
               <NavLink to="/nhan-su" className={navLinkClass}>
                 Nhân sự
               </NavLink>
+              <NavLink to="/nha-cung-cap" className={navLinkClass}>
+                Nhà cung cấp
+              </NavLink>
             </>
           )}
         </nav>

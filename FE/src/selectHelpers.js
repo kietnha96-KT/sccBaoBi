@@ -9,3 +9,6 @@ export const nhanSuLabel = (n) => n.ho_ten;
 
 export const loValue = (l) => l.id;
 export const loLabel = (l) => `${l.so_lo} (${l.ma_vat_tu}) - còn lại ${formatSoLuong(l.con_lai)}/${formatSoLuong(l.so_luong_lo)}`;
+
+export const nccValue = (n) => n.ma_ncc;
+export const nccLabel = (n) => `${n.ma_ncc} - ${n.ten_ncc}`;

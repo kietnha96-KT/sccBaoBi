@@ -13,15 +13,18 @@ import {
 } from 'recharts';
 import { dashboardTheoThoiGian } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
+import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
 import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
+import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT } from '../constants';
+import { nccValue, nccLabel } from '../selectHelpers';
 import { CATEGORICAL, SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
-const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false', group_by: 'ngay' };
+const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false', group_by: 'ngay', ma_ncc: '' };
 
 function formatKy(ky, groupBy) {
   const d = new Date(ky);
@@ -33,16 +36,19 @@ export default function DashboardThoiGianPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const { data, loading, error } = useFetch(
     () => dashboardTheoThoiGian(cleanParams(filters)),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.group_by]
+    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.ma_ncc, filters.group_by]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
+  const nccList = nccData?.data || [];
 
   function cleanParams(f) {
     const p = { la_lua_lai: f.la_lua_lai, group_by: f.group_by };
     if (f.tu_ngay) p.tu_ngay = f.tu_ngay;
     if (f.den_ngay) p.den_ngay = f.den_ngay;
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
+    if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
     return p;
   }
 
@@ -66,13 +72,26 @@ export default function DashboardThoiGianPage() {
         setFilters={setFilters}
         vatTuList={vatTuList}
         extra={
-          <div className="field">
-            <label>Nhóm theo</label>
-            <select value={filters.group_by} onChange={(e) => setFilters({ ...filters, group_by: e.target.value })}>
-              <option value="ngay">Ngày</option>
-              <option value="thang">Tháng</option>
-            </select>
-          </div>
+          <>
+            <div className="field">
+              <label>Nhóm theo</label>
+              <select value={filters.group_by} onChange={(e) => setFilters({ ...filters, group_by: e.target.value })}>
+                <option value="ngay">Ngày</option>
+                <option value="thang">Tháng</option>
+              </select>
+            </div>
+            <div className="field" style={{ minWidth: 200 }}>
+              <label>Nhà cung cấp</label>
+              <SearchableSelect
+                options={nccList}
+                getValue={nccValue}
+                getLabel={nccLabel}
+                value={filters.ma_ncc}
+                onChange={(v) => setFilters({ ...filters, ma_ncc: v })}
+                placeholder="Gõ để tìm..."
+              />
+            </div>
+          </>
         }
       />
 

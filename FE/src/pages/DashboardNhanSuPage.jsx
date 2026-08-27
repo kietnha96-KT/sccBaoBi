@@ -5,6 +5,7 @@ import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listLoaiLoi } from '../api/loailoiApi';
 import { listNhanSu } from '../api/nhansuApi';
+import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
 import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
@@ -14,7 +15,7 @@ import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
-import { loValue, loLabel, nhanSuValue, nhanSuLabel } from '../selectHelpers';
+import { loValue, loLabel, nhanSuValue, nhanSuLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
 const emptyFilters = {
@@ -24,6 +25,7 @@ const emptyFilters = {
   lo_id: '',
   loi_chuan_id: '',
   nhansu_id: '',
+  ma_ncc: '',
   la_lua_lai: 'false',
 };
 
@@ -33,18 +35,20 @@ export default function DashboardNhanSuPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const { data, loading, error } = useFetch(
     () => dashboardTheoNhanSu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.la_lua_lai, page]
+    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.ma_ncc, filters.la_lua_lai, page]
   );
   const { data: breakdownData } = useFetch(
     () => dashboardNhanSuTheoVatTu({ ...cleanParams(filters), page: breakdownPage, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.la_lua_lai, breakdownPage]
+    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.ma_ncc, filters.la_lua_lai, breakdownPage]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
+  const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const nhanSuList = nhanSuData?.data;
+  const nccList = nccData?.data || [];
   const breakdownRows = breakdownData?.data || [];
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
@@ -62,6 +66,7 @@ export default function DashboardNhanSuPage() {
     if (f.lo_id) p.lo_id = f.lo_id;
     if (f.loi_chuan_id) p.loi_chuan_id = f.loi_chuan_id;
     if (f.nhansu_id) p.nhansu_id = f.nhansu_id;
+    if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
     return p;
   }
 
@@ -144,6 +149,17 @@ export default function DashboardNhanSuPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field" style={{ minWidth: 200 }}>
+              <label>Nhà cung cấp</label>
+              <SearchableSelect
+                options={nccList}
+                getValue={nccValue}
+                getLabel={nccLabel}
+                value={filters.ma_ncc}
+                onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+                placeholder="Gõ để tìm..."
+              />
             </div>
           </>
         }
@@ -251,6 +267,7 @@ export default function DashboardNhanSuPage() {
                 <th>Mã vật tư</th>
                 <th>Tên vật tư</th>
                 <th>Số lô</th>
+                <th>Nhà cung cấp</th>
                 <th>Loại lỗi</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
@@ -267,6 +284,7 @@ export default function DashboardNhanSuPage() {
                   <td>{r.ma_vat_tu}</td>
                   <td>{r.ten_vat_tu}</td>
                   <td>{r.so_lo}</td>
+                  <td>{r.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
                   <td>
                     {r.ten_loi === 'Chưa gán nhãn' ? (
                       <span className="badge badge-muted">Chưa gán nhãn</span>
@@ -284,7 +302,7 @@ export default function DashboardNhanSuPage() {
               ))}
               {breakdownRows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={11} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>

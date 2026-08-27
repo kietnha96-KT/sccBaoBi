@@ -53,6 +53,10 @@ function buildTheoNhanSuQuery(query) {
     params.push(query.loi_chuan_id);
     where += ` AND bcns.loi_chuan_id = $${params.length}`;
   }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
+  }
 
   const sql = `
     ${BC_CALC_CTE}
@@ -100,6 +104,10 @@ function buildNhanSuVatTuBreakdownQuery(query) {
     params.push(query.loi_chuan_id);
     where += ` AND bcns.loi_chuan_id = $${params.length}`;
   }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
+  }
 
   const sql = `
     ${BC_CALC_CTE}
@@ -107,6 +115,7 @@ function buildNhanSuVatTuBreakdownQuery(query) {
       ns.id AS nhansu_id, ns.ho_ten,
       v.ma_vat_tu, v.ten_vat_tu,
       l.id AS lo_id, l.so_lo,
+      n.ten_ncc,
       COALESCE(ll.id, 0) AS loi_chuan_id,
       COALESCE(ll.ten_loi, 'Chưa gán nhãn') AS ten_loi,
       COUNT(*) AS so_bao_cao,
@@ -118,11 +127,12 @@ function buildNhanSuVatTuBreakdownQuery(query) {
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+    LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
     LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
     JOIN BaoCao_NhanSu bn ON bn.baocao_id = bcns.id
     JOIN NhanSu ns ON ns.id = bn.nhansu_id
     ${where}
-    GROUP BY ns.id, ns.ho_ten, v.ma_vat_tu, v.ten_vat_tu, l.id, l.so_lo, ll.id, ll.ten_loi
+    GROUP BY ns.id, ns.ho_ten, v.ma_vat_tu, v.ten_vat_tu, l.id, l.so_lo, n.ten_ncc, ll.id, ll.ten_loi
     ORDER BY ns.ho_ten ASC, v.ma_vat_tu ASC, l.so_lo ASC, so_bao_cao DESC
   `;
   return { sql, params };
@@ -189,6 +199,7 @@ router.get(
         { header: 'Nhân sự', key: 'ho_ten', width: 24 },
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 14 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
         { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
@@ -218,6 +229,10 @@ function buildTheoVatTuQuery(query) {
   if (query.lo_id) {
     params.push(query.lo_id);
     where += ` AND bcns.lo_id = $${params.length}`;
+  }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
   }
 
   const sql = `
@@ -289,12 +304,17 @@ function buildLoiTheoVatTuQuery(query) {
     params.push(query.lo_id);
     where += ` AND bcns.lo_id = $${params.length}`;
   }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
+  }
 
   const sql = `
     ${BC_CALC_CTE}
     SELECT
       v.ma_vat_tu, v.ten_vat_tu,
       l.id AS lo_id, l.so_lo,
+      n.ten_ncc,
       COALESCE(ll.id, 0) AS loi_chuan_id,
       COALESCE(ll.ten_loi, 'Chưa gán nhãn') AS ten_loi,
       COUNT(*) AS so_bao_cao,
@@ -306,9 +326,10 @@ function buildLoiTheoVatTuQuery(query) {
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+    LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
     LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
     ${where}
-    GROUP BY v.ma_vat_tu, v.ten_vat_tu, l.id, l.so_lo, ll.id, ll.ten_loi
+    GROUP BY v.ma_vat_tu, v.ten_vat_tu, l.id, l.so_lo, n.ten_ncc, ll.id, ll.ten_loi
     ORDER BY v.ma_vat_tu ASC, l.so_lo ASC, so_bao_cao DESC
   `;
   return { sql, params };
@@ -337,6 +358,7 @@ router.get(
         { header: 'Loại lỗi', key: 'ten_loi', width: 30 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Số lô', key: 'so_lo', width: 10 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
         { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
         { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
@@ -365,17 +387,23 @@ function buildTheoLoQuery(query) {
     outerParams.push(query.lo_id);
     outerWhere += ` AND l.id = $${outerParams.length}`;
   }
+  if (query.ma_ncc) {
+    outerParams.push(query.ma_ncc);
+    outerWhere += ` AND l.ma_ncc = $${outerParams.length}`;
+  }
 
   const sql = `
     ${BC_CALC_CTE}
     SELECT
       l.id AS lo_id, l.so_lo, l.ma_vat_tu, v.ten_vat_tu, l.ngay_san_xuat, l.so_luong_lo,
+      n.ten_ncc,
       COALESCE(cap.da_lua, 0) AS da_lua,
       l.so_luong_lo - COALESCE(cap.da_lua, 0) AS con_lai,
       COALESCE(agg.so_bao_cao, 0) AS so_bao_cao,
       agg.nang_suat_tb
     FROM Lo l
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+    LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
     LEFT JOIN (
       SELECT lo_id, SUM(tong_lua) AS da_lua FROM BaoCao WHERE la_lua_lai = FALSE GROUP BY lo_id
     ) cap ON cap.lo_id = l.id
@@ -414,6 +442,7 @@ router.get(
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 14 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 28 },
         { header: 'Ngày sản xuất', key: 'ngay_san_xuat', width: 16 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 14 },
         { header: 'Đã lựa', key: 'da_lua', width: 14 },
         { header: 'Còn lại', key: 'con_lai', width: 14 },
@@ -437,6 +466,10 @@ function buildTheoThoiGianQuery(query) {
   if (query.ma_vat_tu) {
     params.push(query.ma_vat_tu);
     where += ` AND l.ma_vat_tu = $${params.length}`;
+  }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
   }
 
   const sql = `

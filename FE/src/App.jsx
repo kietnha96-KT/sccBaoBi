@@ -11,6 +11,7 @@ import VatTuPage from './pages/VatTuPage';
 import LoPage from './pages/LoPage';
 import LoaiLoiPage from './pages/LoaiLoiPage';
 import NhanSuPage from './pages/NhanSuPage';
+import NhaCungCapPage from './pages/NhaCungCapPage';
 import DashboardNhanSuPage from './pages/DashboardNhanSuPage';
 import DashboardVatTuPage from './pages/DashboardVatTuPage';
 import DashboardLoPage from './pages/DashboardLoPage';
@@ -99,6 +100,14 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <NhanSuPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/nha-cung-cap"
+              element={
+                <ProtectedRoute adminOnly>
+                  <NhaCungCapPage />
                 </ProtectedRoute>
               }
             />

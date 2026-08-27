@@ -4,6 +4,7 @@ import { dashboardTheoVatTu, dashboardLoiTheoVatTu } from '../api/dashboardApi';
 import { listLoaiLoi } from '../api/loailoiApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
+import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
 import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
@@ -13,10 +14,10 @@ import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
-import { loValue, loLabel } from '../selectHelpers';
+import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
-const emptyFilters = { tu_ngay: '', den_ngay: '', la_lua_lai: 'false', loi_chuan_id: '', ma_vat_tu: '', lo_id: '' };
+const emptyFilters = { tu_ngay: '', den_ngay: '', la_lua_lai: 'false', loi_chuan_id: '', ma_vat_tu: '', lo_id: '', ma_ncc: '' };
 
 export default function DashboardVatTuPage() {
   const [page, setPage] = useState(1);
@@ -24,16 +25,18 @@ export default function DashboardVatTuPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const { data, loading, error } = useFetch(
     () => dashboardTheoVatTu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.loi_chuan_id, filters.ma_vat_tu, filters.lo_id, page]
+    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.loi_chuan_id, filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
   );
   const { data: loiData } = useFetch(
     () => dashboardLoiTheoVatTu({ ...cleanParams(filters), loi_chuan_id: undefined, page: loiPage, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.ma_vat_tu, filters.lo_id, loiPage]
+    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, loiPage]
   );
   const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
+  const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
+  const nccList = nccData?.data || [];
   const loiRows = loiData?.data;
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
@@ -50,6 +53,7 @@ export default function DashboardVatTuPage() {
     if (f.loi_chuan_id) p.loi_chuan_id = f.loi_chuan_id;
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
     if (f.lo_id) p.lo_id = f.lo_id;
+    if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
     return p;
   }
 
@@ -113,6 +117,17 @@ export default function DashboardVatTuPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field" style={{ minWidth: 200 }}>
+              <label>Nhà cung cấp</label>
+              <SearchableSelect
+                options={nccList}
+                getValue={nccValue}
+                getLabel={nccLabel}
+                value={filters.ma_ncc}
+                onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+                placeholder="Gõ để tìm..."
+              />
             </div>
           </>
         }
@@ -216,6 +231,7 @@ export default function DashboardVatTuPage() {
                 <th>Mã vật tư</th>
                 <th>Tên vật tư</th>
                 <th>Số lô</th>
+                <th>Nhà cung cấp</th>
                 <th>Loại lỗi</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
@@ -231,6 +247,7 @@ export default function DashboardVatTuPage() {
                   <td>{r.ma_vat_tu}</td>
                   <td>{r.ten_vat_tu}</td>
                   <td>{r.so_lo}</td>
+                  <td>{r.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
                   <td>
                     {r.ten_loi === 'Chưa gán nhãn' ? (
                       <span className="badge badge-muted">Chưa gán nhãn</span>
@@ -248,7 +265,7 @@ export default function DashboardVatTuPage() {
               ))}
               {(!loiRows || loiRows.length === 0) && (
                 <tr>
-                  <td colSpan={9} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>

@@ -14,6 +14,7 @@ const responses = {
 const pTuNgay = { name: 'tu_ngay', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Lọc từ ngày (yyyy-mm-dd)' };
 const pDenNgay = { name: 'den_ngay', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Lọc đến ngày (yyyy-mm-dd)' };
 const pMaVatTu = { name: 'ma_vat_tu', in: 'query', schema: { type: 'string' } };
+const pMaNcc = { name: 'ma_ncc', in: 'query', schema: { type: 'string' }, description: 'Lọc theo lô thuộc nhà cung cấp này' };
 const pLaLuaLaiDashboard = {
   name: 'la_lua_lai',
   in: 'query',
@@ -82,8 +83,17 @@ const spec = {
           ten_vat_tu: { type: 'string' },
           ngay_san_xuat: { type: 'string', format: 'date' },
           so_luong_lo: { type: 'number' },
+          ma_ncc: { type: 'string', nullable: true, description: '0-1, để trống nếu chưa có nhà cung cấp' },
+          ten_ncc: { type: 'string', nullable: true },
           da_lua: { type: 'number', description: 'Tổng tong_lua các báo cáo (không tính lựa lại)' },
           con_lai: { type: 'number', description: 'so_luong_lo - da_lua' },
+        },
+      },
+      NhaCungCap: {
+        type: 'object',
+        properties: {
+          ma_ncc: { type: 'string' },
+          ten_ncc: { type: 'string' },
         },
       },
       LoaiLoi: {
@@ -169,6 +179,7 @@ const spec = {
           ten_vat_tu: { type: 'string' },
           lo_id: { type: 'integer' },
           so_lo: { type: 'string' },
+          ten_ncc: { type: 'string', nullable: true },
           loi_chuan_id: { type: 'integer' },
           ten_loi: { type: 'string' },
           so_bao_cao: { type: 'integer' },
@@ -200,6 +211,7 @@ const spec = {
           ten_vat_tu: { type: 'string' },
           lo_id: { type: 'integer' },
           so_lo: { type: 'string', description: 'Số lô thật, lấy từ danh mục Lô' },
+          ten_ncc: { type: 'string', nullable: true },
           loi_chuan_id: { type: 'integer' },
           ten_loi: { type: 'string' },
           so_bao_cao: { type: 'integer' },
@@ -218,6 +230,7 @@ const spec = {
           ma_vat_tu: { type: 'string' },
           ten_vat_tu: { type: 'string' },
           ngay_san_xuat: { type: 'string', format: 'date' },
+          ten_ncc: { type: 'string', nullable: true },
           so_luong_lo: { type: 'number' },
           da_lua: { type: 'number' },
           con_lai: { type: 'number' },
@@ -245,6 +258,7 @@ const spec = {
     { name: 'NhanSu', description: 'Quản lý tài khoản nhân sự (tạo tài khoản: admin)' },
     { name: 'VatTu', description: 'Danh mục vật tư (chỉ admin sửa/xóa)' },
     { name: 'Lo', description: 'Danh mục lô (chỉ admin sửa/xóa)' },
+    { name: 'NhaCungCap', description: 'Danh mục nhà cung cấp (chỉ admin sửa/xóa)' },
     { name: 'LoaiLoi', description: 'Danh mục lỗi chuẩn theo vật tư (chỉ admin sửa/xóa)' },
     { name: 'BaoCao', description: 'Báo cáo lựa vật tư' },
     { name: 'Dashboard', description: '4 dashboard năng suất' },
@@ -506,7 +520,7 @@ const spec = {
               schema: {
                 type: 'object',
                 required: ['so_lo', 'ma_vat_tu'],
-                properties: { so_lo: { type: 'string' }, ma_vat_tu: { type: 'string' }, ngay_san_xuat: { type: 'string', format: 'date' }, so_luong_lo: { type: 'number' } },
+                properties: { so_lo: { type: 'string' }, ma_vat_tu: { type: 'string' }, ngay_san_xuat: { type: 'string', format: 'date' }, so_luong_lo: { type: 'number' }, ma_ncc: { type: 'string', nullable: true, description: '0-1, để trống nếu chưa có nhà cung cấp' } },
               },
             },
           },
@@ -523,7 +537,7 @@ const spec = {
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { type: 'object', required: ['so_lo', 'ma_vat_tu'], properties: { so_lo: { type: 'string' }, ma_vat_tu: { type: 'string' }, ngay_san_xuat: { type: 'string', format: 'date' }, so_luong_lo: { type: 'number' } } } } },
+          content: { 'application/json': { schema: { type: 'object', required: ['so_lo', 'ma_vat_tu'], properties: { so_lo: { type: 'string' }, ma_vat_tu: { type: 'string' }, ngay_san_xuat: { type: 'string', format: 'date' }, so_luong_lo: { type: 'number' }, ma_ncc: { type: 'string', nullable: true } } } } },
         },
         responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
       },
@@ -531,6 +545,58 @@ const spec = {
         tags: ['Lo'],
         summary: 'Admin xóa lô (chặn nếu đã có báo cáo liên quan)',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: { 200: { description: 'OK' }, 403: responses.Forbidden, 404: responses.NotFound, 409: responses.Conflict },
+      },
+    },
+
+    // ---------- NHACUNGCAP ----------
+    '/api/nhacungcap': {
+      get: {
+        tags: ['NhaCungCap'],
+        summary: 'Danh sách nhà cung cấp, có phân trang + tìm kiếm',
+        parameters: [
+          pPage,
+          pLimit,
+          { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Tìm theo mã hoặc tên nhà cung cấp' },
+        ],
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/NhaCungCap' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ['NhaCungCap'],
+        summary: 'Admin tạo nhà cung cấp',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_ncc', 'ten_ncc'], properties: { ma_ncc: { type: 'string' }, ten_ncc: { type: 'string' } } } } } },
+        responses: { 201: { description: 'Đã tạo' }, 400: responses.BadRequest, 403: responses.Forbidden, 409: responses.Conflict },
+      },
+    },
+    '/api/nhacungcap/export': { get: { tags: ['NhaCungCap'], summary: 'Xuất Excel danh mục nhà cung cấp (admin)', responses: { 200: { description: 'File Excel' }, 403: responses.Forbidden } } },
+    '/api/nhacungcap/{ma_ncc}': {
+      get: { tags: ['NhaCungCap'], summary: 'Chi tiết nhà cung cấp', parameters: [{ name: 'ma_ncc', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' }, 404: responses.NotFound } },
+      put: {
+        tags: ['NhaCungCap'],
+        summary: 'Admin sửa tên nhà cung cấp',
+        parameters: [{ name: 'ma_ncc', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ten_ncc'], properties: { ten_ncc: { type: 'string' } } } } } },
+        responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
+      },
+      delete: {
+        tags: ['NhaCungCap'],
+        summary: 'Admin xóa nhà cung cấp (chặn nếu đã được gán cho lô)',
+        parameters: [{ name: 'ma_ncc', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'OK' }, 403: responses.Forbidden, 404: responses.NotFound, 409: responses.Conflict },
       },
     },
@@ -676,6 +742,7 @@ const spec = {
           { name: 'lo_id', in: 'query', schema: { type: 'integer' } },
           { name: 'nhansu_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo 1 nhân sự cụ thể' },
           { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo lỗi chuẩn admin đã gán (nên chọn kèm ma_vat_tu vì lỗi gắn theo từng vật tư)' },
+          pMaNcc,
           pLaLuaLaiDashboard,
           pPage,
           pLimit,
@@ -706,7 +773,7 @@ const spec = {
         },
       },
     },
-    '/api/dashboard/nhansu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/nhansu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pMaNcc, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
     '/api/dashboard/nhansu/vattu': {
       get: {
         tags: ['Dashboard'],
@@ -718,6 +785,7 @@ const spec = {
           { name: 'lo_id', in: 'query', schema: { type: 'integer' } },
           { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } },
           { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } },
+          pMaNcc,
           pLaLuaLaiDashboard,
           pPage,
           pLimit,
@@ -740,7 +808,7 @@ const spec = {
         },
       },
     },
-    '/api/dashboard/nhansu/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown theo vật tư + lô + loại lỗi cho từng nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/nhansu/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown theo vật tư + lô + loại lỗi cho từng nhân sự', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pMaNcc, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
 
     '/api/dashboard/vattu': {
       get: {
@@ -753,6 +821,7 @@ const spec = {
           { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo lỗi chuẩn admin đã gán' },
           pMaVatTu,
           { name: 'lo_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo 1 lô cụ thể' },
+          pMaNcc,
           pPage,
           pLimit,
         ],
@@ -774,12 +843,12 @@ const spec = {
         },
       },
     },
-    '/api/dashboard/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo vật tư', parameters: [pTuNgay, pDenNgay, pLaLuaLaiDashboard, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/vattu/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo vật tư', parameters: [pTuNgay, pDenNgay, pLaLuaLaiDashboard, { name: 'loi_chuan_id', in: 'query', schema: { type: 'integer' } }, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pMaNcc], responses: { 200: { description: 'File Excel' } } } },
     '/api/dashboard/vattu/loi': {
       get: {
         tags: ['Dashboard'],
         summary: 'Breakdown số lượng theo từng loại lỗi, theo vật tư (đầy đủ chỉ số như bảng chính), có phân trang (15/trang)',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard, pPage, pLimit],
+        parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pMaNcc, pLaLuaLaiDashboard, pPage, pLimit],
         responses: {
           200: {
             description: 'OK',
@@ -798,13 +867,13 @@ const spec = {
         },
       },
     },
-    '/api/dashboard/vattu/loi/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown lỗi theo vật tư', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/vattu/loi/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel breakdown lỗi theo vật tư', parameters: [pTuNgay, pDenNgay, pMaVatTu, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pMaNcc, pLaLuaLaiDashboard], responses: { 200: { description: 'File Excel' } } } },
 
     '/api/dashboard/lo': {
       get: {
         tags: ['Dashboard'],
         summary: 'Dashboard năng suất / tiến độ theo lô, có phân trang (15/trang)',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pPage, pLimit],
+        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pMaNcc, pPage, pLimit],
         responses: {
           200: {
             description: 'OK',
@@ -823,17 +892,17 @@ const spec = {
         },
       },
     },
-    '/api/dashboard/lo/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo lô', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/lo/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo lô', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'lo_id', in: 'query', schema: { type: 'integer' } }, pMaNcc], responses: { 200: { description: 'File Excel' } } } },
 
     '/api/dashboard/thoigian': {
       get: {
         tags: ['Dashboard'],
         summary: 'Dashboard năng suất theo thời gian (ngày/tháng)',
-        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'group_by', in: 'query', schema: { type: 'string', enum: ['ngay', 'thang'], default: 'ngay' } }],
+        parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, pMaNcc, { name: 'group_by', in: 'query', schema: { type: 'string', enum: ['ngay', 'thang'], default: 'ngay' } }],
         responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/DashboardThoiGian' } } } } } },
       },
     },
-    '/api/dashboard/thoigian/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo thời gian', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, { name: 'group_by', in: 'query', schema: { type: 'string', enum: ['ngay', 'thang'] } }], responses: { 200: { description: 'File Excel' } } } },
+    '/api/dashboard/thoigian/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo thời gian', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, pMaNcc, { name: 'group_by', in: 'query', schema: { type: 'string', enum: ['ngay', 'thang'] } }], responses: { 200: { description: 'File Excel' } } } },
   },
 };
 

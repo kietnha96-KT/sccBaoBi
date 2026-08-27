@@ -2,15 +2,18 @@ import { useState } from 'react';
 import { formatSoLuong } from '../format';
 import { listLo, createLo, updateLo, deleteLo } from '../api/loApi';
 import { listVatTu } from '../api/vattuApi';
+import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
+import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
+import { nccValue, nccLabel } from '../selectHelpers';
 
-const emptyForm = { so_lo: '', ma_vat_tu: '', ngay_san_xuat: '', so_luong_lo: 0 };
+const emptyForm = { so_lo: '', ma_vat_tu: '', ngay_san_xuat: '', so_luong_lo: 0, ma_ncc: '' };
 
 export default function LoPage() {
   const [page, setPage] = useState(1);
@@ -21,6 +24,8 @@ export default function LoPage() {
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
+  const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
+  const nccList = nccData?.data || [];
 
   function updateFilters(patch) {
     setFilters((f) => ({ ...f, ...patch }));
@@ -42,6 +47,7 @@ export default function LoPage() {
     setForm({
       so_lo: row.so_lo,
       ma_vat_tu: row.ma_vat_tu,
+      ma_ncc: row.ma_ncc || '',
       ngay_san_xuat: row.ngay_san_xuat ? row.ngay_san_xuat.substring(0, 10) : '',
       so_luong_lo: row.so_luong_lo,
     });
@@ -125,6 +131,7 @@ export default function LoPage() {
                   <th>Tên vật tư</th>
                   <th>Số lô</th>
                   <th>Ngày SX</th>
+                  <th>Nhà cung cấp</th>
                   <th>Số lượng lô</th>
                   <th>Đã lựa</th>
                   <th>Còn lại</th>
@@ -138,6 +145,7 @@ export default function LoPage() {
                     <td>{row.ten_vat_tu}</td>
                     <td>{row.so_lo}</td>
                     <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td>{row.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
                     <td>{formatSoLuong(row.so_luong_lo)}</td>
                     <td>{formatSoLuong(row.da_lua)}</td>
                     <td>
@@ -159,7 +167,7 @@ export default function LoPage() {
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="empty-state">
+                    <td colSpan={8} className="empty-state">
                       Chưa có lô nào
                     </td>
                   </tr>
@@ -187,6 +195,18 @@ export default function LoPage() {
                 allowClear={false}
               />
               <div className="field">
+                <label>Nhà cung cấp</label>
+                <SearchableSelect
+                  options={nccList}
+                  getValue={nccValue}
+                  getLabel={nccLabel}
+                  value={form.ma_ncc}
+                  onChange={(v) => setForm({ ...form, ma_ncc: v })}
+                  placeholder="Gõ để tìm, để trống nếu chưa có..."
+                  clearLabel="Chưa có nhà cung cấp"
+                />
+              </div>
+              <div className="field">
                 <label>Ngày sản xuất</label>
                 <input
                   type="date"
@@ -194,6 +214,7 @@ export default function LoPage() {
                   onChange={(e) => setForm({ ...form, ngay_san_xuat: e.target.value })}
                 />
               </div>
+              
               <div className="field">
                 <label>Số lượng lô</label>
                 <input

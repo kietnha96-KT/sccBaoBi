@@ -14,6 +14,7 @@ const LO_SELECT = `
   SELECT
     l.*,
     v.ten_vat_tu,
+    n.ten_ncc,
     COALESCE((
       SELECT SUM(bc.tong_lua) FROM BaoCao bc
       WHERE bc.lo_id = l.id AND bc.la_lua_lai = FALSE
@@ -24,6 +25,7 @@ const LO_SELECT = `
     ), 0) AS con_lai
   FROM Lo l
   JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+  LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
 `;
 
 // GET /api/lo - danh sách lô, lọc theo ma_vat_tu / so_lo, co phan trang (mac dinh 15/trang)
@@ -75,6 +77,7 @@ router.get(
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 15 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
         { header: 'Ngày sản xuất', key: 'ngay_san_xuat', width: 18 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 25 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 15 },
         { header: 'Đã lựa', key: 'da_lua', width: 15 },
         { header: 'Còn lại', key: 'con_lai', width: 15 },
@@ -99,7 +102,7 @@ router.post(
   '/',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo } = req.body;
+    const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
       throw new AppError(400, 'Thiếu so_lo hoặc ma_vat_tu');
     }
@@ -112,10 +115,15 @@ router.post(
     ]);
     if (!vt.rows[0]) throw new AppError(400, 'Mã vật tư không tồn tại');
 
+    if (ma_ncc) {
+      const ncc = await pool.query('SELECT ma_ncc FROM NhaCungCap WHERE ma_ncc = $1', [ma_ncc]);
+      if (!ncc.rows[0]) throw new AppError(400, 'Mã nhà cung cấp không tồn tại');
+    }
+
     const result = await pool.query(
-      `INSERT INTO Lo (so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [so_lo, ma_vat_tu, ngay_san_xuat || null, so_luong_lo ?? 0]
+      `INSERT INTO Lo (so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [so_lo, ma_vat_tu, ngay_san_xuat || null, so_luong_lo ?? 0, ma_ncc || null]
     );
     res.status(201).json(result.rows[0]);
   })
@@ -126,7 +134,7 @@ router.put(
   '/:id',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo } = req.body;
+    const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
       throw new AppError(400, 'Thiếu so_lo hoặc ma_vat_tu');
     }
@@ -138,6 +146,11 @@ router.put(
       ma_vat_tu,
     ]);
     if (!vt.rows[0]) throw new AppError(400, 'Mã vật tư không tồn tại');
+
+    if (ma_ncc) {
+      const ncc = await pool.query('SELECT ma_ncc FROM NhaCungCap WHERE ma_ncc = $1', [ma_ncc]);
+      if (!ncc.rows[0]) throw new AppError(400, 'Mã nhà cung cấp không tồn tại');
+    }
 
     // Không cho hạ so_luong_lo xuống thấp hơn số đã lựa thực tế (tránh dữ liệu vô lý)
     const daLuaResult = await pool.query(
@@ -153,9 +166,9 @@ router.put(
     }
 
     const result = await pool.query(
-      `UPDATE Lo SET so_lo = $1, ma_vat_tu = $2, ngay_san_xuat = $3, so_luong_lo = COALESCE($4, so_luong_lo)
-       WHERE id = $5 RETURNING *`,
-      [so_lo, ma_vat_tu, ngay_san_xuat || null, so_luong_lo, req.params.id]
+      `UPDATE Lo SET so_lo = $1, ma_vat_tu = $2, ngay_san_xuat = $3, so_luong_lo = COALESCE($4, so_luong_lo), ma_ncc = $5
+       WHERE id = $6 RETURNING *`,
+      [so_lo, ma_vat_tu, ngay_san_xuat || null, so_luong_lo, ma_ncc || null, req.params.id]
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy lô');
     res.json(result.rows[0]);

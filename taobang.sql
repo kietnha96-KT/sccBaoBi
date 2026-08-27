@@ -18,6 +18,12 @@ CREATE TABLE VatTu (
     thu_kho     VARCHAR(100)    -- tên thủ kho quản lý vật tư này, chỉ hiện trong trang quản trị của admin
 );
 
+-- 2b. BẢNG NHÀ CUNG CẤP (danh mục, admin quản lý; 1 lô có thể chưa gán/gán 1 nhà cung cấp)
+CREATE TABLE NhaCungCap (
+    ma_ncc   VARCHAR(20) PRIMARY KEY,
+    ten_ncc  VARCHAR(200) NOT NULL
+);
+
 -- 3. BẢNG LÔ (mỗi dòng = 1 lần phát sinh lô cho 1 vật tư cụ thể)
 --    Lưu ý: so_lo có thể lặp giá trị giữa các dòng khác vật tư
 --    (vì 1 lần phát sinh lô có thể áp dụng cho nhiều vật tư, mỗi cặp có ngày sản xuất riêng)
@@ -26,11 +32,13 @@ CREATE TABLE Lo (
     so_lo          VARCHAR(50) NOT NULL,
     ma_vat_tu      VARCHAR(20) NOT NULL REFERENCES VatTu(ma_vat_tu),
     ngay_san_xuat  DATE,
-    so_luong_lo    NUMERIC(12,2) NOT NULL DEFAULT 0
+    so_luong_lo    NUMERIC(12,2) NOT NULL DEFAULT 0,
+    ma_ncc         VARCHAR(20) REFERENCES NhaCungCap(ma_ncc)  -- 0-1, để trống nếu admin chưa có NCC
 );
 
 CREATE INDEX idx_lo_ma_vat_tu ON Lo(ma_vat_tu);
 CREATE INDEX idx_lo_so_lo ON Lo(so_lo);
+CREATE INDEX idx_lo_ma_ncc ON Lo(ma_ncc);
 
 -- 4. BẢNG DANH MỤC LỖI CHUẨN (riêng theo từng vật tư, admin quản lý)
 CREATE TABLE LoaiLoi (
