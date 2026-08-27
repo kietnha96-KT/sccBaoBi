@@ -25,7 +25,9 @@ const LIST_SELECT = `
     l.so_lo, l.ma_vat_tu, l.so_luong_lo, v.ten_vat_tu,
     ns.ho_ten AS nguoi_nhap_ho_ten,
     ll.ten_loi AS loi_chuan_ten,
-    (bc.created_at::date = CURRENT_DATE) AS co_the_sua_xoa_hom_nay,
+    -- "trong ngày nhập" tính theo múi giờ VN, không theo UTC của server
+    ((bc.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+      = (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS co_the_sua_xoa_hom_nay,
     (
       SELECT COALESCE(json_agg(json_build_object('id', n2.id, 'ho_ten', n2.ho_ten) ORDER BY n2.ho_ten), '[]')
       FROM BaoCao_NhanSu bcns2 JOIN NhanSu n2 ON n2.id = bcns2.nhansu_id
@@ -156,12 +158,43 @@ router.get(
   })
 );
 
+// Giờ làm việc: định dạng 24h "HH:MM" (00:00 - 23:59), KHÔNG dùng AM/PM.
+const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Chuẩn hóa cặp giờ bắt đầu / kết thúc:
+// - cho phép để trống CẢ HAI (báo cáo chưa có giờ -> không tính năng suất)
+// - nếu nhập thì phải nhập đủ cả hai, đúng định dạng 24h, và kết thúc > bắt đầu
+// - cùng ngày (không hỗ trợ ca qua đêm) -> so sánh chuỗi "HH:MM" là đủ
+function normalizeGioLamViec(tg_bat_dau, tg_ket_thuc) {
+  const bd = tg_bat_dau ? String(tg_bat_dau).trim().slice(0, 5) : '';
+  const kt = tg_ket_thuc ? String(tg_ket_thuc).trim().slice(0, 5) : '';
+
+  if (!bd && !kt) return { tg_bat_dau: null, tg_ket_thuc: null };
+
+  if (!bd || !kt) {
+    throw new AppError(400, 'Phải nhập cả giờ bắt đầu và giờ kết thúc, hoặc để trống cả hai');
+  }
+  if (!TIME_24H_RE.test(bd)) {
+    throw new AppError(400, 'Giờ bắt đầu không hợp lệ, cần định dạng 24 giờ HH:MM (ví dụ 08:30)');
+  }
+  if (!TIME_24H_RE.test(kt)) {
+    throw new AppError(400, 'Giờ kết thúc không hợp lệ, cần định dạng 24 giờ HH:MM (ví dụ 17:00)');
+  }
+  if (kt <= bd) {
+    throw new AppError(400, 'Giờ kết thúc phải sau giờ bắt đầu (trong cùng một ngày)');
+  }
+  return { tg_bat_dau: bd, tg_ket_thuc: kt };
+}
+
 // Chuẩn hóa + validate payload nhập/sửa báo cáo
 function parseReportBody(body) {
   const { ngay, lo_id, dat, hu_bo, tg_bat_dau, tg_ket_thuc, loi_nguoi_dung, la_lua_lai, ghi_chu, nhansu_ids } =
     body;
 
   if (!ngay) throw new AppError(400, 'Thiếu ngày');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ngay)) || Number.isNaN(Date.parse(ngay))) {
+    throw new AppError(400, 'Ngày không hợp lệ (định dạng YYYY-MM-DD)');
+  }
   if (!lo_id) throw new AppError(400, 'Thiếu lo_id');
   if (dat !== undefined && Number(dat) < 0) throw new AppError(400, 'dat không được âm');
   if (hu_bo !== undefined && Number(hu_bo) < 0) throw new AppError(400, 'hu_bo không được âm');
@@ -169,13 +202,15 @@ function parseReportBody(body) {
     throw new AppError(400, 'Phải chọn ít nhất 1 nhân sự tham gia');
   }
 
+  const gio = normalizeGioLamViec(tg_bat_dau, tg_ket_thuc);
+
   return {
     ngay,
     lo_id,
     dat: dat ?? 0,
     hu_bo: hu_bo ?? 0,
-    tg_bat_dau: tg_bat_dau || null,
-    tg_ket_thuc: tg_ket_thuc || null,
+    tg_bat_dau: gio.tg_bat_dau,
+    tg_ket_thuc: gio.tg_ket_thuc,
     loi_nguoi_dung: loi_nguoi_dung || null,
     la_lua_lai: !!la_lua_lai,
     ghi_chu: ghi_chu || null,
@@ -286,7 +321,10 @@ router.post(
 // Kiểm tra quyền sửa/xóa: admin luôn được; nhân viên chỉ được với báo cáo của chính mình, trong ngày nhập
 async function assertCanModify(req, baocaoId) {
   const result = await pool.query(
-    `SELECT nguoi_nhap_id, (created_at::date = CURRENT_DATE) AS la_hom_nay FROM BaoCao WHERE id = $1`,
+    `SELECT nguoi_nhap_id,
+       ((created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+         = (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS la_hom_nay
+     FROM BaoCao WHERE id = $1`,
     [baocaoId]
   );
   const bc = result.rows[0];
@@ -302,7 +340,10 @@ async function assertCanModify(req, baocaoId) {
   }
 }
 
-// PUT /api/baocao/:id - sửa báo cáo (không sửa được loi_nguoi_dung và loi_chuan_id)
+// PUT /api/baocao/:id - sửa báo cáo.
+// - loi_chuan_id: không sửa ở đây (dùng PATCH /:id/loi-chuan, chỉ admin).
+// - loi_nguoi_dung: sửa được như mọi trường khác, miễn là còn quyền sửa phiếu
+//   (nhân viên: phiếu của mình + trong ngày; admin: mọi lúc) - assertCanModify đã kiểm.
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -335,8 +376,8 @@ router.put(
 
       const updateResult = await client.query(
         `UPDATE BaoCao SET ngay = $1, lo_id = $2, dat = $3, hu_bo = $4, tg_bat_dau = $5,
-           tg_ket_thuc = $6, la_lua_lai = $7, ghi_chu = $8
-         WHERE id = $9 RETURNING id`,
+           tg_ket_thuc = $6, la_lua_lai = $7, ghi_chu = $8, loi_nguoi_dung = $9
+         WHERE id = $10 RETURNING id`,
         [
           payload.ngay,
           payload.lo_id,
@@ -346,6 +387,7 @@ router.put(
           payload.tg_ket_thuc,
           payload.la_lua_lai,
           payload.ghi_chu,
+          payload.loi_nguoi_dung,
           baocaoId,
         ]
       );

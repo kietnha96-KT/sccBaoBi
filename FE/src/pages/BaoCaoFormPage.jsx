@@ -14,7 +14,62 @@ import VatTuFilterFields from '../components/VatTuFilterFields';
 import { ALL_LIMIT } from '../constants';
 import { loValue, loLabel } from '../selectHelpers';
 
-const todayStr = () => new Date().toISOString().substring(0, 10);
+// Ngày hôm nay theo giờ máy người dùng (KHÔNG dùng toISOString vì đó là giờ UTC,
+// nửa đêm ở VN sẽ ra ngày hôm trước).
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const GIO_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const PHUT_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+// Dropdown chọn giờ:phút theo định dạng 24h. Giá trị giữ trong form vẫn là chuỗi "HH:MM" (hoặc "").
+// Chọn 1 trong 2 ô -> ô còn lại tự lấy "00". Nút "Bỏ giờ" để xóa trắng cả cặp.
+function TimeSelect({ label, value, onChange, disabled }) {
+  const [h, m] = value && value.includes(':') ? value.split(':') : ['', ''];
+  const setPart = (nh, nm) => {
+    if (!nh && !nm) return onChange('');
+    onChange(`${nh || '00'}:${nm || '00'}`);
+  };
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <select value={h} onChange={(e) => setPart(e.target.value, m)} disabled={disabled} aria-label={`${label} - giờ`}>
+          <option value="">Giờ</option>
+          {GIO_OPTIONS.map((x) => (
+            <option key={x} value={x}>{x}</option>
+          ))}
+        </select>
+        <span>:</span>
+        <select value={m} onChange={(e) => setPart(h, e.target.value)} disabled={disabled} aria-label={`${label} - phút`}>
+          <option value="">Phút</option>
+          {PHUT_OPTIONS.map((x) => (
+            <option key={x} value={x}>{x}</option>
+          ))}
+        </select>
+        {value && !disabled && (
+          <button type="button" className="btn btn-sm" onClick={() => onChange('')}>
+            Bỏ giờ
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Kiểm tra cặp giờ trước khi gửi lên server (đồng bộ với normalizeGioLamViec ở backend).
+function validateGioLamViec(bd, kt) {
+  if (!bd && !kt) return '';
+  if (!bd || !kt) return 'Phải nhập cả giờ bắt đầu và giờ kết thúc, hoặc để trống cả hai';
+  if (!TIME_24H_RE.test(bd)) return 'Giờ bắt đầu chưa đúng định dạng 24 giờ HH:MM (ví dụ 08:30)';
+  if (!TIME_24H_RE.test(kt)) return 'Giờ kết thúc chưa đúng định dạng 24 giờ HH:MM (ví dụ 17:00)';
+  if (kt <= bd) return 'Giờ kết thúc phải sau giờ bắt đầu (trong cùng một ngày)';
+  return '';
+}
 
 const emptyForm = {
   ngay: todayStr(),
@@ -39,6 +94,8 @@ export default function BaoCaoFormPage() {
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const nhanSuList = nhanSuData?.data;
+
+  const isAdmin = user?.vai_tro === 'admin';
 
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
   const [loList, setLoList] = useState([]);
@@ -70,13 +127,13 @@ export default function BaoCaoFormPage() {
           nhansu_ids: bc.nhansu_tham_gia.map((n) => n.id),
         });
         setMaVatTuFilter(bc.ma_vat_tu);
-        if (!bc.co_the_sua_xoa_hom_nay && user?.vai_tro !== 'admin') {
+        if (!bc.co_the_sua_xoa_hom_nay && !isAdmin) {
           setReadOnlyNotice('Báo cáo này không còn trong ngày nhập, bạn không thể sửa (chỉ admin mới sửa được).');
         }
       })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [id, isEdit, user]);
+  }, [id, isEdit, user, isAdmin]);
 
   // nạp danh sách lô theo vật tư đang lọc
   useEffect(() => {
@@ -103,6 +160,12 @@ export default function BaoCaoFormPage() {
       return;
     }
 
+    const gioError = validateGioLamViec(form.tg_bat_dau.trim(), form.tg_ket_thuc.trim());
+    if (gioError) {
+      setError(gioError);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -110,8 +173,8 @@ export default function BaoCaoFormPage() {
         lo_id: Number(form.lo_id),
         dat: Number(form.dat),
         hu_bo: Number(form.hu_bo),
-        tg_bat_dau: form.tg_bat_dau || null,
-        tg_ket_thuc: form.tg_ket_thuc || null,
+        tg_bat_dau: form.tg_bat_dau.trim() || null,
+        tg_ket_thuc: form.tg_ket_thuc.trim() || null,
       };
       if (isEdit) {
         await updateBaoCao(id, payload);
@@ -147,6 +210,7 @@ export default function BaoCaoFormPage() {
               <input
                 type="date"
                 value={form.ngay}
+                max={todayStr()}
                 onChange={(e) => setForm({ ...form, ngay: e.target.value })}
                 disabled={disabled}
                 required
@@ -216,25 +280,19 @@ export default function BaoCaoFormPage() {
               <input value={(Number(form.dat) || 0) + (Number(form.hu_bo) || 0)} disabled />
             </div>
 
-            <div className="field">
-              <label>Giờ bắt đầu</label>
-              <input
-                type="time"
-                value={form.tg_bat_dau}
-                onChange={(e) => setForm({ ...form, tg_bat_dau: e.target.value })}
-                disabled={disabled}
-              />
-            </div>
+            <TimeSelect
+              label="Giờ bắt đầu (24 giờ)"
+              value={form.tg_bat_dau}
+              onChange={(v) => setForm({ ...form, tg_bat_dau: v })}
+              disabled={disabled}
+            />
 
-            <div className="field">
-              <label>Giờ kết thúc</label>
-              <input
-                type="time"
-                value={form.tg_ket_thuc}
-                onChange={(e) => setForm({ ...form, tg_ket_thuc: e.target.value })}
-                disabled={disabled}
-              />
-            </div>
+            <TimeSelect
+              label="Giờ kết thúc (24 giờ)"
+              value={form.tg_ket_thuc}
+              onChange={(v) => setForm({ ...form, tg_ket_thuc: v })}
+              disabled={disabled}
+            />
 
             <div className="field checkbox-row" style={{ alignSelf: 'end' }}>
               <input
@@ -251,11 +309,11 @@ export default function BaoCaoFormPage() {
           </div>
 
           <div className="field" style={{ marginTop: 14 }}>
-            <label>Lỗi (ghi chú tự do){isEdit ? ' - không thể sửa sau khi tạo' : ''}</label>
+            <label>Lỗi (ghi chú tự do)</label>
             <input
               value={form.loi_nguoi_dung}
               onChange={(e) => setForm({ ...form, loi_nguoi_dung: e.target.value })}
-              disabled={disabled || isEdit}
+              disabled={disabled}
               placeholder="VD: trong mốp góc, rách bao..."
             />
           </div>

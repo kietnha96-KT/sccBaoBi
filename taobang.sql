@@ -60,7 +60,7 @@ CREATE TABLE BaoCao (
     tg_bat_dau      TIME,
     tg_ket_thuc     TIME,
     nguoi_nhap_id   INTEGER NOT NULL REFERENCES NhanSu(id),  -- người đại diện nhập
-    loi_nguoi_dung  VARCHAR(255),   -- text tự do, người dùng nhập, KHÔNG sửa sau này
+    loi_nguoi_dung  VARCHAR(255),   -- text tự do người nhập ghi; sửa được khi còn quyền sửa phiếu (NV: trong ngày; admin: mọi lúc)
     loi_chuan_id    INTEGER REFERENCES LoaiLoi(id),  -- admin gán nhãn sau, để trống lúc đầu
 	la_lua_lai      BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = báo cáo lựa lại, loại khỏi công thức/dashboard chính
     ghi_chu         TEXT,

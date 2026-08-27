@@ -1,9 +1,11 @@
 // CTE dùng chung cho mọi dashboard năng suất.
 // Công thức (theo ghi chú trong taobang.sql):
 // nang_suat_8h = tong_lua / gio_lam / so_nhansu_tham_gia * 8
-// - gio_lam tính từ tg_bat_dau -> tg_ket_thuc (giờ)
+// - gio_lam tính từ tg_bat_dau -> tg_ket_thuc (giờ), trong CÙNG một ngày (không hỗ trợ ca qua đêm)
 // - so_nhansu lấy từ BaoCao_NhanSu
 // - báo cáo thiếu giờ làm hoặc thiếu nhân sự thì nang_suat_8h = NULL (loại khỏi trung bình)
+// Điều kiện tg_ket_thuc > tg_bat_dau ở đây là lớp phòng vệ cuối: dữ liệu nhập mới đã được
+// validate ở parseReportBody (baocao.routes.js), nhưng vẫn có thể còn báo cáo cũ nhập giờ sai.
 const BC_CALC_CTE = `
   WITH bc_calc AS (
     SELECT
