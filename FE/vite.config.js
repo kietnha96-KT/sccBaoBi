@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': KHÔNG tự reload (tránh mất dữ liệu khi nhân viên đang nhập báo cáo).
+      // Khi có bản mới, hiện nút nhỏ cạnh "Đăng xuất" để người dùng bấm tải lại.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'SCC Bao Bi - Quản lý báo cáo lựa vật tư',
@@ -42,6 +44,13 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Dọn cache của các bản build cũ ngay khi SW mới kích hoạt.
+        cleanupOutdatedCaches: true,
+        // SW mới giành quyền điều khiển mọi tab ngay khi active (không cần đóng hết tab).
+        clientsClaim: true,
+        // KHÔNG bật skipWaiting ở đây (sẽ tự cập nhật ngầm như cũ). Việc "skip waiting"
+        // do nút bấm trong app kích hoạt qua updateServiceWorker(true) -> SW mới vào ngay.
+        skipWaiting: false,
         // Không cache API (dữ liệu báo cáo/dashboard luôn cần mới nhất) - chỉ cache app shell (JS/CSS/HTML)
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [

@@ -208,6 +208,40 @@ a {
   flex-wrap: wrap;
 }
 
+/* Nút nhỏ "có bản cập nhật" cạnh nút Đăng xuất - chỉ hiện khi có bản mới */
+.btn-pwa-update {
+  padding: 5px 8px;
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-bg);
+  animation: pwa-update-pulse 2s ease-in-out infinite;
+}
+
+.btn-pwa-update:hover {
+  background: var(--warning);
+  color: #fff;
+}
+
+.btn-pwa-update svg {
+  display: block;
+}
+
+@keyframes pwa-update-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(217, 119, 6, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-pwa-update {
+    animation: none;
+  }
+}
+
 /* ---------- Card / Surface ---------- */
 .card {
   background: var(--surface);

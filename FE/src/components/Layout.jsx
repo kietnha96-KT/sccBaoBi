@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import PwaUpdateButton from './PwaUpdateButton';
 
 const navLinkClass = ({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '');
 
@@ -92,6 +93,7 @@ export default function Layout() {
             <span />
           </button>
           <div className="btn-group">
+            <PwaUpdateButton />
             <NavLink to="/doi-mat-khau" className="btn btn-sm">
               Đổi mật khẩu
             </NavLink>
