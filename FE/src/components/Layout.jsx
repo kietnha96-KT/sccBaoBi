@@ -5,8 +5,10 @@ import PwaUpdateButton from './PwaUpdateButton';
 
 const navLinkClass = ({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '');
 
+const ROLE_LABEL = { admin: 'Admin', thu_kho: 'Thủ kho', nhan_vien: 'Nhân viên' };
+
 export default function Layout() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -38,7 +40,7 @@ export default function Layout() {
             Nhập báo cáo mới
           </NavLink>
 
-          {isAdmin && (
+          {isStaff && (
             <>
               <div className="sidebar-section">Dashboard năng suất</div>
               <NavLink to="/dashboard/nhan-su" className={navLinkClass}>
@@ -55,28 +57,34 @@ export default function Layout() {
               </NavLink>
 
               <div className="sidebar-section">Quản trị danh mục</div>
-              <NavLink to="/vat-tu" className={navLinkClass}>
-                Vật tư
-              </NavLink>
+              {isAdmin && (
+                <NavLink to="/vat-tu" className={navLinkClass}>
+                  Vật tư
+                </NavLink>
+              )}
               <NavLink to="/lo" className={navLinkClass}>
                 Lô
               </NavLink>
               <NavLink to="/loai-loi" className={navLinkClass}>
                 Loại lỗi
               </NavLink>
-              <NavLink to="/nhan-su" className={navLinkClass}>
-                Nhân sự
-              </NavLink>
-              <NavLink to="/nha-cung-cap" className={navLinkClass}>
-                Nhà cung cấp
-              </NavLink>
+              {isAdmin && (
+                <>
+                  <NavLink to="/nhan-su" className={navLinkClass}>
+                    Nhân sự
+                  </NavLink>
+                  <NavLink to="/nha-cung-cap" className={navLinkClass}>
+                    Nhà cung cấp
+                  </NavLink>
+                </>
+              )}
             </>
           )}
         </nav>
 
         <div className="sidebar-footer">
           <div className="sidebar-user">{user?.ho_ten}</div>
-          <div className="sidebar-role">{user?.vai_tro === 'admin' ? 'Admin' : 'Nhân viên'}</div>
+          <div className="sidebar-role">{ROLE_LABEL[user?.vai_tro] || 'Nhân viên'}</div>
         </div>
       </aside>
 

@@ -41,7 +41,7 @@ function App() {
             <Route
               path="/dashboard/nhan-su"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <DashboardNhanSuPage />
                 </ProtectedRoute>
               }
@@ -49,7 +49,7 @@ function App() {
             <Route
               path="/dashboard/vat-tu"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <DashboardVatTuPage />
                 </ProtectedRoute>
               }
@@ -57,7 +57,7 @@ function App() {
             <Route
               path="/dashboard/lo"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <DashboardLoPage />
                 </ProtectedRoute>
               }
@@ -65,7 +65,7 @@ function App() {
             <Route
               path="/dashboard/thoi-gian"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <DashboardThoiGianPage />
                 </ProtectedRoute>
               }
@@ -82,7 +82,7 @@ function App() {
             <Route
               path="/lo"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <LoPage />
                 </ProtectedRoute>
               }
@@ -90,7 +90,7 @@ function App() {
             <Route
               path="/loai-loi"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute staffOnly>
                   <LoaiLoiPage />
                 </ProtectedRoute>
               }

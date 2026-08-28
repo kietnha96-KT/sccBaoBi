@@ -30,7 +30,7 @@ const emptyFilters = {
 };
 
 export default function BaoCaoListPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isStaff } = useAuth();
   const [filters, setFilters] = useState(emptyFilters);
   const [actionError, setActionError] = useState('');
 
@@ -214,7 +214,7 @@ export default function BaoCaoListPage() {
                   <th>Nhân sự tham gia</th>
                   <th>Lỗi (tự do)</th>
                   <th>Lựa lại</th>
-                  {isAdmin && <th>Lỗi chuẩn (admin gán)</th>}
+                  {isStaff && <th>Lỗi chuẩn (gán nhãn)</th>}
                   <th></th>
                 </tr>
               </thead>
@@ -239,7 +239,7 @@ export default function BaoCaoListPage() {
                         <span className="badge badge-muted">Lựa chính</span>
                       )}
                     </td>
-                    {isAdmin && (
+                    {isStaff && (
                       <td>
                         <select
                           value={row.loi_chuan_id || ''}

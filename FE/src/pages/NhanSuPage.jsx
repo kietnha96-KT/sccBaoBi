@@ -9,6 +9,12 @@ import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien' };
 
+const ROLE_BADGE = {
+  admin: { cls: 'badge-admin', label: 'Admin' },
+  thu_kho: { cls: 'badge-thukho', label: 'Thủ kho' },
+  nhan_vien: { cls: 'badge-nhanvien', label: 'Nhân viên' },
+};
+
 export default function NhanSuPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -133,8 +139,8 @@ export default function NhanSuPage() {
                     <td>{row.ho_ten}</td>
                     <td>{row.username}</td>
                     <td>
-                      <span className={`badge ${row.vai_tro === 'admin' ? 'badge-admin' : 'badge-nhanvien'}`}>
-                        {row.vai_tro === 'admin' ? 'Admin' : 'Nhân viên'}
+                      <span className={`badge ${(ROLE_BADGE[row.vai_tro] || ROLE_BADGE.nhan_vien).cls}`}>
+                        {(ROLE_BADGE[row.vai_tro] || ROLE_BADGE.nhan_vien).label}
                       </span>
                     </td>
                     <td>{new Date(row.created_at).toLocaleDateString('vi-VN')}</td>
@@ -213,6 +219,7 @@ export default function NhanSuPage() {
                 <label>Vai trò</label>
                 <select value={form.vai_tro} onChange={(e) => setForm({ ...form, vai_tro: e.target.value })}>
                   <option value="nhan_vien">Nhân viên</option>
+                  <option value="thu_kho">Thủ kho</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

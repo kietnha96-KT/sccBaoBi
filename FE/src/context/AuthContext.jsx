@@ -23,9 +23,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const isAdmin = user?.vai_tro === 'admin';
+  const isThuKho = user?.vai_tro === 'thu_kho';
+  // Nhóm "quyền như admin" (admin + thủ kho): dashboard, thao tác báo cáo,
+  // danh mục Lô + Loại lỗi. Các danh mục còn lại vẫn chỉ admin.
+  const isStaff = isAdmin || isThuKho;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, isThuKho, isStaff }}>
       {children}
     </AuthContext.Provider>
   );

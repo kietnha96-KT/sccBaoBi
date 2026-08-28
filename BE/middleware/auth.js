@@ -27,4 +27,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticateToken, requireAdmin };
+// Cho phép admin HOẶC thủ kho (thu_kho có quyền gần như admin: dashboard, báo cáo,
+// và danh mục Lô + Loại lỗi).
+function requireStaff(req, res, next) {
+  if (!req.user || !['admin', 'thu_kho'].includes(req.user.vai_tro)) {
+    return next(new AppError(403, 'Chỉ admin hoặc thủ kho mới có quyền thực hiện thao tác này'));
+  }
+  next();
+}
+
+module.exports = { authenticateToken, requireAdmin, requireStaff };

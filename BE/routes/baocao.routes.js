@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
@@ -199,7 +199,7 @@ function parseReportBody(body) {
   if (dat !== undefined && Number(dat) < 0) throw new AppError(400, 'dat không được âm');
   if (hu_bo !== undefined && Number(hu_bo) < 0) throw new AppError(400, 'hu_bo không được âm');
   if (!Array.isArray(nhansu_ids) || nhansu_ids.length === 0) {
-    throw new AppError(400, 'Phải chọn ít nhất 1 nhân sự tham gia');
+    throw new AppError(400, 'Phải chọn ít nhất 1 nhân viên tham gia');
   }
 
   const gio = normalizeGioLamViec(tg_bat_dau, tg_ket_thuc);
@@ -216,6 +216,24 @@ function parseReportBody(body) {
     ghi_chu: ghi_chu || null,
     nhansu_ids: [...new Set(nhansu_ids.map(Number))],
   };
+}
+
+// Chuẩn hóa danh sách "nhân sự tham gia": chỉ giữ người có vai trò 'nhan_vien'.
+// Admin / thủ kho KHÔNG được tính là người tham gia (họ chỉ là người đại diện nhập phiếu).
+async function resolveNhanVienIds(rawIds) {
+  const uniq = [...new Set((rawIds || []).map(Number).filter((n) => Number.isInteger(n)))];
+  if (uniq.length === 0) throw new AppError(400, 'Phải chọn ít nhất 1 nhân viên tham gia');
+
+  const result = await pool.query('SELECT id, vai_tro FROM NhanSu WHERE id = ANY($1::int[])', [uniq]);
+  if (result.rows.length !== uniq.length) {
+    throw new AppError(400, 'Một hoặc nhiều nhân sự được chọn không tồn tại');
+  }
+
+  const nhanVienIds = result.rows.filter((r) => r.vai_tro === 'nhan_vien').map((r) => r.id);
+  if (nhanVienIds.length === 0) {
+    throw new AppError(400, 'Phải chọn ít nhất 1 nhân viên tham gia');
+  }
+  return nhanVienIds;
 }
 
 // Kiểm tra tổng tong_lua theo lo_id không vượt so_luong_lo (loại trừ báo cáo lựa lại và loại trừ chính báo cáo đang sửa)
@@ -256,17 +274,13 @@ router.post(
   asyncHandler(async (req, res) => {
     const payload = parseReportBody(req.body);
 
-    // người nhập tự động có mặt trong danh sách nhân sự tham gia
-    if (!payload.nhansu_ids.includes(req.user.id)) {
+    // Người nhập là NHÂN VIÊN thì tự có mặt trong danh sách tham gia.
+    // Admin / thủ kho nhập hộ thì không tự thêm (và cũng bị lọc ra ở resolveNhanVienIds).
+    if (req.user.vai_tro === 'nhan_vien' && !payload.nhansu_ids.includes(req.user.id)) {
       payload.nhansu_ids.push(req.user.id);
     }
 
-    const nsResult = await pool.query('SELECT id FROM NhanSu WHERE id = ANY($1::int[])', [
-      payload.nhansu_ids,
-    ]);
-    if (nsResult.rows.length !== payload.nhansu_ids.length) {
-      throw new AppError(400, 'Một hoặc nhiều nhân sự được chọn không tồn tại');
-    }
+    payload.nhansu_ids = await resolveNhanVienIds(payload.nhansu_ids);
 
     const client = await pool.connect();
     try {
@@ -318,7 +332,8 @@ router.post(
   })
 );
 
-// Kiểm tra quyền sửa/xóa: admin luôn được; nhân viên chỉ được với báo cáo của chính mình, trong ngày nhập
+// Kiểm tra quyền sửa/xóa: CHỈ admin luôn được; nhân viên VÀ thủ kho chỉ được với
+// báo cáo của chính mình, trong ngày nhập
 async function assertCanModify(req, baocaoId) {
   const result = await pool.query(
     `SELECT nguoi_nhap_id,
@@ -341,9 +356,9 @@ async function assertCanModify(req, baocaoId) {
 }
 
 // PUT /api/baocao/:id - sửa báo cáo.
-// - loi_chuan_id: không sửa ở đây (dùng PATCH /:id/loi-chuan, chỉ admin).
+// - loi_chuan_id: không sửa ở đây (dùng PATCH /:id/loi-chuan, admin & thủ kho).
 // - loi_nguoi_dung: sửa được như mọi trường khác, miễn là còn quyền sửa phiếu
-//   (nhân viên: phiếu của mình + trong ngày; admin: mọi lúc) - assertCanModify đã kiểm.
+//   (nhân viên & thủ kho: phiếu của mình + trong ngày; admin: mọi lúc) - assertCanModify đã kiểm.
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -351,16 +366,7 @@ router.put(
     await assertCanModify(req, baocaoId);
 
     const payload = parseReportBody(req.body);
-    if (!payload.nhansu_ids.length) {
-      throw new AppError(400, 'Phải chọn ít nhất 1 nhân sự tham gia');
-    }
-
-    const nsResult = await pool.query('SELECT id FROM NhanSu WHERE id = ANY($1::int[])', [
-      payload.nhansu_ids,
-    ]);
-    if (nsResult.rows.length !== payload.nhansu_ids.length) {
-      throw new AppError(400, 'Một hoặc nhiều nhân sự được chọn không tồn tại');
-    }
+    payload.nhansu_ids = await resolveNhanVienIds(payload.nhansu_ids);
 
     const client = await pool.connect();
     try {
@@ -437,10 +443,10 @@ router.delete(
   })
 );
 
-// PATCH /api/baocao/:id/loi-chuan - admin gán/sửa/gỡ nhãn lỗi chuẩn
+// PATCH /api/baocao/:id/loi-chuan - admin & thủ kho gán/sửa/gỡ nhãn lỗi chuẩn
 router.patch(
   '/:id/loi-chuan',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { loi_chuan_id } = req.body;
     const baocaoId = req.params.id;

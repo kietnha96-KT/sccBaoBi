@@ -88,21 +88,21 @@ export default function BaoCaoFormPage() {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
-  const nhanSuList = nhanSuData?.data;
-
-  const isAdmin = user?.vai_tro === 'admin';
+  // Chỉ cho tick chọn người có vai trò "nhân viên" (không hiện admin / thủ kho)
+  const nhanSuList = (nhanSuData?.data || []).filter((ns) => ns.vai_tro === 'nhan_vien');
 
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
   const [loList, setLoList] = useState([]);
 
   const [form, setForm] = useState({
     ...emptyForm,
-    nhansu_ids: user ? [user.id] : [],
+    // Chỉ tự chọn sẵn bản thân nếu người tạo là nhân viên; admin/thủ kho không tính là người tham gia.
+    nhansu_ids: user?.vai_tro === 'nhan_vien' ? [user.id] : [],
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(isEdit);
@@ -156,7 +156,7 @@ export default function BaoCaoFormPage() {
     setError('');
 
     if (form.nhansu_ids.length === 0) {
-      setError('Phải chọn ít nhất 1 nhân sự tham gia');
+      setError('Phải chọn ít nhất 1 nhân viên tham gia');
       return;
     }
 

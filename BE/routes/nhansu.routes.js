@@ -82,7 +82,7 @@ router.post(
     if (!ho_ten || !username || !password) {
       throw new AppError(400, 'Thiếu ho_ten, username hoặc password');
     }
-    if (vai_tro && !['admin', 'nhan_vien'].includes(vai_tro)) {
+    if (vai_tro && !['admin', 'nhan_vien', 'thu_kho'].includes(vai_tro)) {
       throw new AppError(400, 'vai_tro không hợp lệ');
     }
     if (password.length < 6) {
@@ -114,7 +114,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const { ho_ten, vai_tro } = req.body;
     if (!ho_ten) throw new AppError(400, 'Thiếu ho_ten');
-    if (vai_tro && !['admin', 'nhan_vien'].includes(vai_tro)) {
+    if (vai_tro && !['admin', 'nhan_vien', 'thu_kho'].includes(vai_tro)) {
       throw new AppError(400, 'vai_tro không hợp lệ');
     }
 

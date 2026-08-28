@@ -519,6 +519,11 @@ table.data-table {
   color: #1d4ed8;
 }
 
+.badge-thukho {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
 .badge-warning {
   background: var(--warning-bg);
   color: var(--warning);

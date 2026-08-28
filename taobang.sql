@@ -6,7 +6,8 @@ CREATE TABLE NhanSu (
     username    VARCHAR(50)  NOT NULL UNIQUE,
     password    VARCHAR(255) NOT NULL,   -- lưu bản đã hash, không lưu plain text
     vai_tro     VARCHAR(20)  NOT NULL DEFAULT 'nhan_vien'
-                 CHECK (vai_tro IN ('admin', 'nhan_vien')),
+                 CHECK (vai_tro IN ('admin', 'nhan_vien', 'thu_kho')),
+                 -- thu_kho: quyen gan giong admin, nhung Quan tri danh muc chi thay Lo + Loai loi
     created_at  TIMESTAMP DEFAULT NOW()
 );
 

@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
@@ -45,7 +45,7 @@ router.get(
 // GET /api/loailoi/export
 router.get(
   '/export',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const result = await pool.query(`${LOAILOI_SELECT} ORDER BY v.ma_vat_tu, ll.ten_loi`);
     await sendExcel(res, {
@@ -77,7 +77,7 @@ router.get(
 // POST /api/loailoi - admin tạo loại lỗi mới cho 1 vật tư
 router.post(
   '/',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { ma_vat_tu, ten_loi } = req.body;
     if (!ma_vat_tu || !ten_loi) {
@@ -99,7 +99,7 @@ router.post(
 // PUT /api/loailoi/:id - admin sửa
 router.put(
   '/:id',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { ten_loi } = req.body;
     if (!ten_loi) throw new AppError(400, 'Thiếu ten_loi');
@@ -116,7 +116,7 @@ router.put(
 // DELETE /api/loailoi/:id - admin xóa (chặn nếu đã có báo cáo đang gán nhãn lỗi này)
 router.delete(
   '/:id',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     try {
       const result = await pool.query('DELETE FROM LoaiLoi WHERE id = $1 RETURNING id', [

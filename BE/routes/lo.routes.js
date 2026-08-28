@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
@@ -65,7 +65,7 @@ router.get(
 // GET /api/lo/export
 router.get(
   '/export',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const result = await pool.query(`${LO_SELECT} ORDER BY l.id DESC`);
     await sendExcel(res, {
@@ -100,7 +100,7 @@ router.get(
 // POST /api/lo - admin tạo lô mới
 router.post(
   '/',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
@@ -132,7 +132,7 @@ router.post(
 // PUT /api/lo/:id - admin sửa lô
 router.put(
   '/:id',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
@@ -178,7 +178,7 @@ router.put(
 // DELETE /api/lo/:id - admin xóa lô (chặn nếu đã có báo cáo liên quan)
 router.delete(
   '/:id',
-  requireAdmin,
+  requireStaff,
   asyncHandler(async (req, res) => {
     try {
       const result = await pool.query('DELETE FROM Lo WHERE id = $1 RETURNING id', [
