@@ -8,6 +8,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -130,7 +131,7 @@ export default function LoPage() {
                   <th>Mã vật tư</th>
                   <th>Tên vật tư</th>
                   <th>Số lô</th>
-                  <th>Ngày SX</th>
+                  {/* <th>Ngày SX</th> */}
                   <th>Nhà cung cấp</th>
                   <th>Số lượng lô</th>
                   <th>Đã lựa</th>
@@ -142,10 +143,10 @@ export default function LoPage() {
                 {data?.data.map((row) => (
                   <tr key={row.id}>
                     <td>{row.ma_vat_tu}</td>
-                    <td>{row.ten_vat_tu}</td>
+                    <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.so_lo}</td>
-                    <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td>
-                    <td>{row.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
+                    {/* <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
+                    <td><TruncatedText text={row.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
                     <td>{formatSoLuong(row.so_luong_lo)}</td>
                     <td>{formatSoLuong(row.da_lua)}</td>
                     <td>

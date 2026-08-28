@@ -5,6 +5,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import TruncatedText from '../components/TruncatedText';
 
 const PAGE_SIZE = 15;
 const emptyForm = { ma_vat_tu: '', ten_vat_tu: '', loai: '', thu_kho: '' };
@@ -147,7 +148,7 @@ export default function VatTuPage() {
                 {rows.map((row) => (
                   <tr key={row.ma_vat_tu}>
                     <td>{row.ma_vat_tu}</td>
-                    <td className="wrap">{row.ten_vat_tu}</td>
+                    <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.loai || <span className="field-hint">Chưa gán</span>}</td>
                     <td>{row.thu_kho || <span className="field-hint">Chưa gán</span>}</td>
                     <td>

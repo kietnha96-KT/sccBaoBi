@@ -1,17 +1,22 @@
 import { useState } from 'react';
 
 // Hiện văn bản dài, ban đầu chỉ chiếm khoảng maxWidth (cắt bằng CSS ellipsis, không cắt cứng
-// theo số ký tự), bấm icon để xem/thu gọn toàn bộ - dùng cho các cột tên dài trong bảng
-export default function TruncatedText({ text, maxLength = 20, maxWidth = 150 }) {
+// theo số ký tự), bấm icon kính lúp để xem/thu gọn toàn bộ - dùng cho các cột tên dài trong bảng.
+// fallback: nội dung hiển thị khi text rỗng (vd <span className="field-hint">Chưa có</span>).
+export default function TruncatedText({ text, maxLength = 20, maxWidth = 150, fallback = null }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!text) return null;
-  if (text.length <= maxLength) return <>{text}</>;
+  if (text === null || text === undefined || text === '') return fallback;
+  const str = String(text);
+  if (str.length <= maxLength) return <>{str}</>;
 
   return (
     <span className="truncated-text">
-      <span className={expanded ? undefined : 'truncated-text-clip'} style={expanded ? undefined : { maxWidth }}>
-        {text}
+      <span
+        className={expanded ? undefined : 'truncated-text-clip'}
+        style={expanded ? undefined : { maxWidth }}
+      >
+        {str}
       </span>
       <button
         type="button"

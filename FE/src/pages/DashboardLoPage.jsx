@@ -8,6 +8,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
+import TruncatedText from '../components/TruncatedText';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { nccValue, nccLabel } from '../selectHelpers';
@@ -86,10 +87,10 @@ export default function DashboardLoPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Tên vật tư</th>
                   <th>Mã vật tư</th>
+                  <th>Tên vật tư</th>
                   <th>Số lô</th>
-                  <th>Ngày SX</th>
+                  {/* <th>Ngày SX</th> */}
                   <th>Nhà cung cấp</th>
                   <th>Tiến độ (đã lựa / tổng)</th>
                   <th>Số báo cáo</th>
@@ -103,11 +104,11 @@ export default function DashboardLoPage() {
                   const pct = soLuong > 0 ? Math.min(100, (daLua / soLuong) * 100) : 0;
                   return (
                     <tr key={r.lo_id}>
-                      <td className="wrap">{r.ten_vat_tu}</td>
                       <td>{r.ma_vat_tu}</td>
+                      <td><TruncatedText text={r.ten_vat_tu} /></td>
                       <td>{r.so_lo}</td>
-                      <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td>
-                      <td>{r.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
+                      {/* <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
+                      <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
                       <td style={{ minWidth: 220 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#e1e0d9', overflow: 'hidden' }}>
@@ -133,8 +134,8 @@ export default function DashboardLoPage() {
               </tbody>
             </table>
           )}
-          <Pagination pagination={data?.pagination} onPageChange={setPage} />
         </div>
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
     </div>
   );

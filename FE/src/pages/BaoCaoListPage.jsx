@@ -224,14 +224,14 @@ export default function BaoCaoListPage() {
                     <td>{row.id}</td>
                     <td>{new Date(row.ngay).toLocaleDateString('vi-VN')}</td>
                     <td>{row.ma_vat_tu}</td>
-                    <td className="wrap"><TruncatedText text={row.ten_vat_tu} maxLength={20} /></td>
+                    <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.so_lo}</td>
                     <td>{formatSoLuong(row.dat)}</td>
                     <td>{formatSoLuong(row.hu_bo)}</td>
                     <td>{formatSoLuong(row.tong_lua)}</td>
-                    <td>{row.nguoi_nhap_ho_ten}</td>
-                    <td className="wrap">{row.nhansu_tham_gia.map((n) => n.ho_ten).join(', ')}</td>
-                    <td className="wrap">{row.loi_nguoi_dung || '-'}</td>
+                    <td><TruncatedText text={row.nguoi_nhap_ho_ten} maxWidth={160} /></td>
+                    <td><TruncatedText text={row.nhansu_tham_gia.map((n) => n.ho_ten).join(', ')} maxWidth={200} /></td>
+                    <td><TruncatedText text={row.loi_nguoi_dung || '-'} maxWidth={200} /></td>
                     <td>
                       {row.la_lua_lai ? (
                         <span className="badge badge-warning">Lựa lại</span>

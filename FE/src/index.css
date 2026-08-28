@@ -58,6 +58,11 @@ a {
   display: flex;
   flex-direction: column;
   padding: 16px 0;
+  /* Desktop: khóa sidebar tại chỗ khi cuộn nội dung dài (mobile ghi đè thành fixed drawer) */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
   overflow-y: auto;
 }
 
@@ -139,6 +144,10 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  /* Luôn thấy nút Đăng xuất / cập nhật khi cuộn trang dài */
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .page-title {
@@ -465,7 +474,8 @@ a {
 
 /* ---------- Table ---------- */
 .table-wrap {
-  overflow-x: auto;
+  overflow: auto; /* cả ngang lẫn dọc, để freeze header hoạt động */
+  max-height: calc(100vh - 210px);
 }
 
 table.data-table {
@@ -482,13 +492,18 @@ table.data-table {
   white-space: nowrap;
 }
 
-.data-table th {
+/* Freeze pane: tiêu đề bảng luôn hiện khi cuộn dọc */
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: #fafafa;
+  background: #f2f3f5;
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 
 .data-table tbody tr:hover {
@@ -497,7 +512,7 @@ table.data-table {
 
 .data-table td.wrap {
   white-space: normal;
-  min-width: 160px;
+  max-width: 240px;
 }
 
 /* ---------- Badge ---------- */
@@ -750,6 +765,10 @@ table.data-table {
 
   .card-body {
     padding: 14px;
+  }
+
+  .table-wrap {
+    max-height: calc(100vh - 150px);
   }
 
   .stat-grid {

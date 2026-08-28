@@ -5,6 +5,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import TruncatedText from '../components/TruncatedText';
 import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ma_ncc: '', ten_ncc: '' };
@@ -118,7 +119,7 @@ export default function NhaCungCapPage() {
                 {rows.map((row) => (
                   <tr key={row.ma_ncc}>
                     <td>{row.ma_ncc}</td>
-                    <td className="wrap">{row.ten_ncc}</td>
+                    <td><TruncatedText text={row.ten_ncc} maxWidth={240} /></td>
                     <td>
                       <div className="row-actions">
                         <button className="btn btn-sm" onClick={() => openEdit(row)}>

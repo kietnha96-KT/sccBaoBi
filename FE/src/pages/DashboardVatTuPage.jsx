@@ -12,6 +12,7 @@ import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
+import TruncatedText from '../components/TruncatedText';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
@@ -186,7 +187,7 @@ export default function DashboardVatTuPage() {
               {rows.map((r) => (
                 <tr key={r.ma_vat_tu}>
                   <td>{r.ma_vat_tu}</td>
-                  <td>{r.ten_vat_tu}</td>
+                  <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
                   <td>{formatSoLuong(r.tong_dat)}</td>
@@ -204,8 +205,8 @@ export default function DashboardVatTuPage() {
               )}
             </tbody>
           </table>
-          <Pagination pagination={data?.pagination} onPageChange={setPage} />
         </div>
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>
@@ -245,14 +246,14 @@ export default function DashboardVatTuPage() {
               {loiRows?.map((r) => (
                 <tr key={`${r.lo_id}-${r.loi_chuan_id}`}>
                   <td>{r.ma_vat_tu}</td>
-                  <td>{r.ten_vat_tu}</td>
+                  <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{r.so_lo}</td>
-                  <td>{r.ten_ncc || <span className="field-hint">Chưa có</span>}</td>
+                  <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
                   <td>
                     {r.ten_loi === 'Chưa gán nhãn' ? (
                       <span className="badge badge-muted">Chưa gán nhãn</span>
                     ) : (
-                      r.ten_loi
+                      <TruncatedText text={r.ten_loi} maxWidth={200} />
                     )}
                   </td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
@@ -272,8 +273,8 @@ export default function DashboardVatTuPage() {
               )}
             </tbody>
           </table>
-          <Pagination pagination={loiData?.pagination} onPageChange={setLoiPage} />
         </div>
+        <Pagination pagination={loiData?.pagination} onPageChange={setLoiPage} />
       </div>
     </div>
   );

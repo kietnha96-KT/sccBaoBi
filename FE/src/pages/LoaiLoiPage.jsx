@@ -6,6 +6,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 
@@ -110,8 +111,8 @@ export default function LoaiLoiPage() {
                 {data?.data.map((row) => (
                   <tr key={row.id}>
                     <td>{row.ma_vat_tu}</td>
-                    <td>{row.ten_vat_tu}</td>
-                    <td className="wrap">{row.ten_loi}</td>
+                    <td><TruncatedText text={row.ten_vat_tu} /></td>
+                    <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>
                     <td>
                       <div className="row-actions">
                         <button className="btn btn-sm" onClick={() => openEdit(row)}>
