@@ -7,8 +7,9 @@ import { listLoaiLoi } from '../api/loailoiApi';
 import { listNhanSu } from '../api/nhansuApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import StatCard from '../components/StatCard';
 import DashboardFilterBar from '../components/DashboardFilterBar';
@@ -20,8 +21,8 @@ import { loValue, loLabel, nhanSuValue, nhanSuLabel, nccValue, nccLabel } from '
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
 const emptyFilters = {
-  tu_ngay: '',
-  den_ngay: '',
+  tu_ngay: firstDayOfThisMonth(),
+  den_ngay: lastDayOfThisMonth(),
   ma_vat_tu: '',
   lo_id: '',
   loi_chuan_id: '',
@@ -34,6 +35,8 @@ export default function DashboardNhanSuPage() {
   const [page, setPage] = useState(1);
   const [breakdownPage, setBreakdownPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
+  const { getRowProps } = useRowSelect();
+  const { getRowProps: getBreakdownRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
     () => dashboardTheoNhanSu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
     [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.ma_ncc, filters.la_lua_lai, page]
@@ -219,22 +222,22 @@ export default function DashboardNhanSuPage() {
                 <th>Nhân sự</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                <th>Tổng đạt</th>
-                <th>Tổng hư bỏ</th>
-                <th>Tổng lựa</th>
-                <th>Tỷ lệ hư bỏ (%)</th>
+                {/* <th>Tổng đạt</th> */}
+                {/* <th>Tổng hư bỏ</th> */}
+                {/* <th>Tổng lựa</th> */}
+                {/* <th>Tỷ lệ hư bỏ (%)</th> */}
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.nhansu_id}>
+                <tr key={r.nhansu_id} {...getRowProps(r.nhansu_id)}>
                   <td><TruncatedText text={r.ho_ten} maxWidth={180} /></td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  <td>{formatSoLuong(r.tong_dat)}</td>
-                  <td>{formatSoLuong(r.tong_hu_bo)}</td>
-                  <td>{formatSoLuong(r.tong_lua)}</td>
-                  <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td>
+                  {/* <td>{formatSoLuong(r.tong_dat)}</td> */}
+                  {/* <td>{formatSoLuong(r.tong_hu_bo)}</td> */}
+                  {/* <td>{formatSoLuong(r.tong_lua)}</td> */}
+                  {/* <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td> */}
                 </tr>
               ))}
               {rows.length === 0 && (
@@ -261,7 +264,7 @@ export default function DashboardNhanSuPage() {
           </button>
         </div>
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table freeze-2">
             <thead>
               <tr>
                 <th>Nhân sự</th>
@@ -272,16 +275,19 @@ export default function DashboardNhanSuPage() {
                 <th>Loại lỗi</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                <th>Tổng đạt</th>
-                <th>Tổng hư bỏ</th>
-                <th>Tổng lựa</th>
-                <th>Tỷ lệ hư bỏ (%)</th>
+                {/* <th>Tổng đạt</th> */}
+                {/* <th>Tổng hư bỏ</th> */}
+                {/* <th>Tổng lựa</th> */}
+                {/* <th>Tỷ lệ hư bỏ (%)</th> */}
               </tr>
             </thead>
             <tbody>
               {breakdownRows.map((r) => (
-                <tr key={`${r.nhansu_id}-${r.lo_id}-${r.loi_chuan_id}`}>
-                  <td><TruncatedText text={r.ho_ten} maxWidth={160} /></td>
+                <tr
+                  key={`${r.nhansu_id}-${r.lo_id}-${r.loi_chuan_id}`}
+                  {...getBreakdownRowProps(`${r.nhansu_id}-${r.lo_id}-${r.loi_chuan_id}`)}
+                >
+                  <td><TruncatedText text={r.ho_ten} maxWidth={110} /></td>
                   <td>{r.ma_vat_tu}</td>
                   <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{r.so_lo}</td>
@@ -295,10 +301,10 @@ export default function DashboardNhanSuPage() {
                   </td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  <td>{formatSoLuong(r.tong_dat)}</td>
-                  <td>{formatSoLuong(r.tong_hu_bo)}</td>
-                  <td>{formatSoLuong(r.tong_lua)}</td>
-                  <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td>
+                  {/* <td>{formatSoLuong(r.tong_dat)}</td> */}
+                  {/* <td>{formatSoLuong(r.tong_hu_bo)}</td> */}
+                  {/* <td>{formatSoLuong(r.tong_lua)}</td> */}
+                  {/* <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td> */}
                 </tr>
               ))}
               {breakdownRows.length === 0 && (

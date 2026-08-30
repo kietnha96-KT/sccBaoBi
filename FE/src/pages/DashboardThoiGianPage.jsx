@@ -15,8 +15,9 @@ import { dashboardTheoThoiGian } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import SearchableSelect from '../components/SearchableSelect';
@@ -24,7 +25,14 @@ import { ALL_LIMIT } from '../constants';
 import { nccValue, nccLabel } from '../selectHelpers';
 import { CATEGORICAL, SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
-const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false', group_by: 'ngay', ma_ncc: '' };
+const emptyFilters = {
+  tu_ngay: firstDayOfThisMonth(),
+  den_ngay: lastDayOfThisMonth(),
+  ma_vat_tu: '',
+  la_lua_lai: 'false',
+  group_by: 'ngay',
+  ma_ncc: '',
+};
 
 function formatKy(ky, groupBy) {
   const d = new Date(ky);
@@ -34,6 +42,7 @@ function formatKy(ky, groupBy) {
 
 export default function DashboardThoiGianPage() {
   const [filters, setFilters] = useState(emptyFilters);
+  const { getRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
     () => dashboardTheoThoiGian(cleanParams(filters)),
     [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.ma_ncc, filters.group_by]
@@ -179,7 +188,7 @@ export default function DashboardThoiGianPage() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={i}>
+                <tr key={i} {...getRowProps(i)}>
                   <td>{formatKy(r.ky, filters.group_by)}</td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoLuong(r.tong_dat)}</td>

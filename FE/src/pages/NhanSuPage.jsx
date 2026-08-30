@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { listNhanSu, createNhanSu, updateNhanSu, resetPassword, deleteNhanSu } from '../api/nhansuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
@@ -22,6 +23,7 @@ export default function NhanSuPage() {
     () => listNhanSu({ page, limit: PAGE_SIZE, search: search || undefined }),
     [page, search]
   );
+  const { getRowProps } = useRowSelect();
   const [modal, setModal] = useState(null); // 'create' | { edit: row } | { reset: row }
   const [form, setForm] = useState(emptyForm);
   const [resetPwd, setResetPwd] = useState('');
@@ -134,7 +136,7 @@ export default function NhanSuPage() {
               </thead>
               <tbody>
                 {data?.data.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} {...getRowProps(row.id)}>
                     <td>{row.id}</td>
                     <td>{row.ho_ten}</td>
                     <td>{row.username}</td>

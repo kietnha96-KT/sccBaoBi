@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch-path=./routes --watch-path=./middleware --watch-path=./utils --watch-path=./db.js --watch-path=./server.js --watch-path=./openapi.js server.js",
+    "use:local": "node -e \"require('fs').copyFileSync('.env.local','.env')\" && node -e \"console.log('>> Da chuyen sang: LOCAL (.env.local)')\"",
+    "use:render": "node -e \"require('fs').copyFileSync('.env.render','.env')\" && node -e \"console.log('>> Da chuyen sang: RENDER - DU LIEU THAT (.env.render)')\"",
+    "env:which": "node -e \"try{var d=require('fs').readFileSync('.env','utf8');console.log('Dang dung:', /^\\s*DATABASE_URL\\s*=\\s*\\S/m.test(d)?'RENDER (cloud, du lieu that)':'LOCAL')}catch(e){console.log('Chua co file .env - chay: npm run use:local hoac npm run use:render')}\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

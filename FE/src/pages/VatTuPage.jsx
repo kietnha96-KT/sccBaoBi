@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { listVatTu, listLoaiVatTu, createVatTu, updateVatTu, deleteVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
@@ -19,6 +20,7 @@ export default function VatTuPage() {
     [page, search, loaiFilter]
   );
   const { data: loaiOptions } = useFetch(listLoaiVatTu, []);
+  const { getRowProps } = useRowSelect();
 
   const [modal, setModal] = useState(null); // 'create' | { edit: row }
   const [form, setForm] = useState(emptyForm);
@@ -146,7 +148,7 @@ export default function VatTuPage() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.ma_vat_tu}>
+                  <tr key={row.ma_vat_tu} {...getRowProps(row.ma_vat_tu)}>
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.loai || <span className="field-hint">Chưa gán</span>}</td>

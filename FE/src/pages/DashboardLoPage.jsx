@@ -3,8 +3,9 @@ import { dashboardTheoLo } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
@@ -14,11 +15,18 @@ import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE } from '../chartColors';
 
-const emptyFilters = { tu_ngay: '', den_ngay: '', ma_vat_tu: '', la_lua_lai: 'false', ma_ncc: '' };
+const emptyFilters = {
+  tu_ngay: firstDayOfThisMonth(),
+  den_ngay: lastDayOfThisMonth(),
+  ma_vat_tu: '',
+  la_lua_lai: 'false',
+  ma_ncc: '',
+};
 
 export default function DashboardLoPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
+  const { getRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
     () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
     [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.ma_ncc, page]
@@ -103,7 +111,7 @@ export default function DashboardLoPage() {
                   const daLua = Number(r.da_lua) || 0;
                   const pct = soLuong > 0 ? Math.min(100, (daLua / soLuong) * 100) : 0;
                   return (
-                    <tr key={r.lo_id}>
+                    <tr key={r.lo_id} {...getRowProps(r.lo_id)}>
                       <td>{r.ma_vat_tu}</td>
                       <td><TruncatedText text={r.ten_vat_tu} /></td>
                       <td>{r.so_lo}</td>
@@ -118,6 +126,16 @@ export default function DashboardLoPage() {
                             {formatSoLuong(daLua)}/{formatSoLuong(soLuong)} ({pct.toFixed(0)}%)
                           </span>
                         </div>
+                        {(Number(r.da_lua_gan_ron) > 0 || Number(r.da_lua_cat_ty) > 0) && (
+                          <div className="field-hint" style={{ fontSize: 11, marginTop: 2 }}>
+                            {Number(r.da_lua_gan_ron) > 0 && (
+                              <span>Gắn ron: {formatSoLuong(r.da_lua_gan_ron)}&nbsp;&nbsp;</span>
+                            )}
+                            {Number(r.da_lua_cat_ty) > 0 && (
+                              <span>Cắt ty: {formatSoLuong(r.da_lua_cat_ty)}</span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td>{formatSoLuong(r.so_bao_cao)}</td>
                       <td>{formatSoThapPhan(r.nang_suat_tb)}</td>

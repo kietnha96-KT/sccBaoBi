@@ -1,2 +1,6 @@
 node_modules
+
+# File cau hinh moi truong (chua mat khau / connection string that)
 .env
+.env.local
+.env.render

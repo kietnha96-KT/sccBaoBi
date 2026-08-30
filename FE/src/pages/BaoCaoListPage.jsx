@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatSoLuong } from '../format';
+import { formatSoLuong, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
+import { useRowSelect } from '../hooks/useRowSelect';
 import { listBaoCao, deleteBaoCao, ganLoiChuan } from '../api/baocaoApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
@@ -18,8 +19,8 @@ import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel } from '../selectHelpers';
 
 const emptyFilters = {
-  tu_ngay: '',
-  den_ngay: '',
+  tu_ngay: firstDayOfThisMonth(),
+  den_ngay: lastDayOfThisMonth(),
   ma_vat_tu: '',
   lo_id: '',
   la_lua_lai: '',
@@ -33,6 +34,7 @@ export default function BaoCaoListPage() {
   const { user, isAdmin, isStaff } = useAuth();
   const [filters, setFilters] = useState(emptyFilters);
   const [actionError, setActionError] = useState('');
+  const { getRowProps } = useRowSelect();
 
   const { data, loading, error, reload } = useFetch(
     () => listBaoCao(cleanParams(filters)),
@@ -199,7 +201,7 @@ export default function BaoCaoListPage() {
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
           ) : (
-            <table className="data-table">
+            <table className="data-table freeze-3">
               <thead>
                 <tr>
                   <th>ID</th>
@@ -220,7 +222,7 @@ export default function BaoCaoListPage() {
               </thead>
               <tbody>
                 {data?.data.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} {...getRowProps(row.id)}>
                     <td>{row.id}</td>
                     <td>{new Date(row.ngay).toLocaleDateString('vi-VN')}</td>
                     <td>{row.ma_vat_tu}</td>

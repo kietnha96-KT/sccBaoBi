@@ -6,8 +6,9 @@ import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
@@ -18,12 +19,22 @@ import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
 
-const emptyFilters = { tu_ngay: '', den_ngay: '', la_lua_lai: 'false', loi_chuan_id: '', ma_vat_tu: '', lo_id: '', ma_ncc: '' };
+const emptyFilters = {
+  tu_ngay: firstDayOfThisMonth(),
+  den_ngay: lastDayOfThisMonth(),
+  la_lua_lai: 'false',
+  loi_chuan_id: '',
+  ma_vat_tu: '',
+  lo_id: '',
+  ma_ncc: '',
+};
 
 export default function DashboardVatTuPage() {
   const [page, setPage] = useState(1);
   const [loiPage, setLoiPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
+  const { getRowProps } = useRowSelect();
+  const { getRowProps: getLoiRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
     () => dashboardTheoVatTu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
     [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.loi_chuan_id, filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
@@ -185,7 +196,7 @@ export default function DashboardVatTuPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.ma_vat_tu}>
+                <tr key={r.ma_vat_tu} {...getRowProps(r.ma_vat_tu)}>
                   <td>{r.ma_vat_tu}</td>
                   <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
@@ -244,7 +255,7 @@ export default function DashboardVatTuPage() {
             </thead>
             <tbody>
               {loiRows?.map((r) => (
-                <tr key={`${r.lo_id}-${r.loi_chuan_id}`}>
+                <tr key={`${r.lo_id}-${r.loi_chuan_id}`} {...getLoiRowProps(`${r.lo_id}-${r.loi_chuan_id}`)}>
                   <td>{r.ma_vat_tu}</td>
                   <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{r.so_lo}</td>

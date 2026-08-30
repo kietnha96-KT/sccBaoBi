@@ -5,27 +5,45 @@ const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const {
+  LL_LA_LOI_DAC_BIET,
+  SUM_LOI_DAC_BIET_COLS,
+  SUM_DA_LUA_CHUAN,
+} = require('../utils/loiDacBiet');
 
 const router = express.Router();
 router.use(authenticateToken);
 
-// Subquery: đã lựa (chỉ tính báo cáo không phải lựa lại) + còn lại so với so_luong_lo
+// Gộp "đã lựa" theo lô (chỉ tính báo cáo không phải lựa lại):
+//  - da_lua        : tổng lựa CHUẨN, đã trừ các báo cáo dính lỗi đặc biệt (gắn ron / cắt ty)
+//  - da_lua_gan_ron, da_lua_cat_ty : tổng lựa riêng từng lỗi đặc biệt (để hiện tách dòng)
+// con_lai = so_luong_lo - da_lua (lỗi đặc biệt coi như chưa lựa xong -> vẫn nằm trong "còn lại").
+const LO_DA_LUA_JOIN = `
+  LEFT JOIN (
+    SELECT
+      bc.lo_id,
+      ${SUM_DA_LUA_CHUAN} AS da_lua,
+      ${SUM_LOI_DAC_BIET_COLS}
+    FROM BaoCao bc
+    LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
+    WHERE bc.la_lua_lai = FALSE
+    GROUP BY bc.lo_id
+  ) dl ON dl.lo_id = l.id
+`;
+
 const LO_SELECT = `
   SELECT
     l.*,
     v.ten_vat_tu,
     n.ten_ncc,
-    COALESCE((
-      SELECT SUM(bc.tong_lua) FROM BaoCao bc
-      WHERE bc.lo_id = l.id AND bc.la_lua_lai = FALSE
-    ), 0) AS da_lua,
-    l.so_luong_lo - COALESCE((
-      SELECT SUM(bc.tong_lua) FROM BaoCao bc
-      WHERE bc.lo_id = l.id AND bc.la_lua_lai = FALSE
-    ), 0) AS con_lai
+    COALESCE(dl.da_lua, 0) AS da_lua,
+    COALESCE(dl.da_lua_gan_ron, 0) AS da_lua_gan_ron,
+    COALESCE(dl.da_lua_cat_ty, 0) AS da_lua_cat_ty,
+    l.so_luong_lo - COALESCE(dl.da_lua, 0) AS con_lai
   FROM Lo l
   JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
   LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
+  ${LO_DA_LUA_JOIN}
 `;
 
 // GET /api/lo - danh sách lô, lọc theo ma_vat_tu / so_lo, co phan trang (mac dinh 15/trang)
@@ -79,7 +97,9 @@ router.get(
         { header: 'Ngày sản xuất', key: 'ngay_san_xuat', width: 18 },
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 25 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 15 },
-        { header: 'Đã lựa', key: 'da_lua', width: 15 },
+        { header: 'Đã lựa (không tính lỗi đặc biệt)', key: 'da_lua', width: 22 },
+        { header: 'Gắn ron', key: 'da_lua_gan_ron', width: 12 },
+        { header: 'Cắt ty', key: 'da_lua_cat_ty', width: 12 },
         { header: 'Còn lại', key: 'con_lai', width: 15 },
       ],
       rows: result.rows,
@@ -152,9 +172,13 @@ router.put(
       if (!ncc.rows[0]) throw new AppError(400, 'Mã nhà cung cấp không tồn tại');
     }
 
-    // Không cho hạ so_luong_lo xuống thấp hơn số đã lựa thực tế (tránh dữ liệu vô lý)
+    // Không cho hạ so_luong_lo xuống thấp hơn số đã lựa thực tế (tránh dữ liệu vô lý).
+    // Dùng "đã lựa" CHUẨN (đã trừ lỗi đặc biệt) cho khớp con số hiển thị trong danh mục lô.
     const daLuaResult = await pool.query(
-      `SELECT COALESCE(SUM(tong_lua), 0) AS da_lua FROM BaoCao WHERE lo_id = $1 AND la_lua_lai = FALSE`,
+      `SELECT COALESCE(${SUM_DA_LUA_CHUAN}, 0) AS da_lua
+       FROM BaoCao bc
+       LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
+       WHERE bc.lo_id = $1 AND bc.la_lua_lai = FALSE`,
       [req.params.id]
     );
     const daLua = Number(daLuaResult.rows[0].da_lua);

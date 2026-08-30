@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { listNhaCungCap, createNhaCungCap, updateNhaCungCap, deleteNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
@@ -17,6 +18,7 @@ export default function NhaCungCapPage() {
     () => listNhaCungCap({ page, limit: PAGE_SIZE, search: search || undefined }),
     [page, search]
   );
+  const { getRowProps } = useRowSelect();
 
   const [modal, setModal] = useState(null); // 'create' | { edit: row }
   const [form, setForm] = useState(emptyForm);
@@ -117,7 +119,7 @@ export default function NhaCungCapPage() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.ma_ncc}>
+                  <tr key={row.ma_ncc} {...getRowProps(row.ma_ncc)}>
                     <td>{row.ma_ncc}</td>
                     <td><TruncatedText text={row.ten_ncc} maxWidth={240} /></td>
                     <td>

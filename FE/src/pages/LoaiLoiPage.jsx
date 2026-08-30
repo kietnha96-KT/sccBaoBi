@@ -3,6 +3,7 @@ import { listLoaiLoi, createLoaiLoi, updateLoaiLoi, deleteLoaiLoi } from '../api
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
@@ -19,6 +20,7 @@ export default function LoaiLoiPage() {
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
+  const { getRowProps } = useRowSelect();
 
   function handleFilterChange(v) {
     setMaVatTuFilter(v);
@@ -109,7 +111,7 @@ export default function LoaiLoiPage() {
               </thead>
               <tbody>
                 {data?.data.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} {...getRowProps(row.id)}>
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>

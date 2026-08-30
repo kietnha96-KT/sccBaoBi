@@ -21,6 +21,7 @@ export default function VatTuFilterFields({
   vatTuPlaceholder = 'Gõ mã hoặc tên vật tư...',
   loaiLabel = 'Loại vật tư',
   vatTuLabelText = 'Vật tư',
+  vatTuRequired = false,
   showLoai = true,
 }) {
   const [loai, setLoai] = useState('');
@@ -55,7 +56,10 @@ export default function VatTuFilterFields({
         </div>
       )}
       <div className="field" style={{ minWidth: 260 }}>
-        <label>{vatTuLabelText}</label>
+        <label>
+          {vatTuLabelText}
+          {vatTuRequired && <span className="req">*</span>}
+        </label>
         <SearchableSelect
           options={filteredVatTu}
           getValue={vatTuValue}

@@ -28,7 +28,7 @@ const PHUT_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, 
 
 // Dropdown chọn giờ:phút theo định dạng 24h. Giá trị giữ trong form vẫn là chuỗi "HH:MM" (hoặc "").
 // Chọn 1 trong 2 ô -> ô còn lại tự lấy "00". Nút "Bỏ giờ" để xóa trắng cả cặp.
-function TimeSelect({ label, value, onChange, disabled }) {
+function TimeSelect({ label, value, onChange, disabled, required }) {
   const [h, m] = value && value.includes(':') ? value.split(':') : ['', ''];
   const setPart = (nh, nm) => {
     if (!nh && !nm) return onChange('');
@@ -36,7 +36,10 @@ function TimeSelect({ label, value, onChange, disabled }) {
   };
   return (
     <div className="field">
-      <label>{label}</label>
+      <label>
+        {label}
+        {required && <span className="req">*</span>}
+      </label>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <select value={h} onChange={(e) => setPart(e.target.value, m)} disabled={disabled} aria-label={`${label} - giờ`}>
           <option value="">Giờ</option>
@@ -51,7 +54,7 @@ function TimeSelect({ label, value, onChange, disabled }) {
             <option key={x} value={x}>{x}</option>
           ))}
         </select>
-        {value && !disabled && (
+        {value && !disabled && !required && (
           <button type="button" className="btn btn-sm" onClick={() => onChange('')}>
             Bỏ giờ
           </button>
@@ -62,9 +65,10 @@ function TimeSelect({ label, value, onChange, disabled }) {
 }
 
 // Kiểm tra cặp giờ trước khi gửi lên server (đồng bộ với normalizeGioLamViec ở backend).
+// Giờ bắt đầu và giờ kết thúc là BẮT BUỘC.
 function validateGioLamViec(bd, kt) {
-  if (!bd && !kt) return '';
-  if (!bd || !kt) return 'Phải nhập cả giờ bắt đầu và giờ kết thúc, hoặc để trống cả hai';
+  if (!bd && !kt) return 'Phải nhập giờ bắt đầu và giờ kết thúc';
+  if (!bd || !kt) return 'Phải nhập cả giờ bắt đầu và giờ kết thúc';
   if (!TIME_24H_RE.test(bd)) return 'Giờ bắt đầu chưa đúng định dạng 24 giờ HH:MM (ví dụ 08:30)';
   if (!TIME_24H_RE.test(kt)) return 'Giờ kết thúc chưa đúng định dạng 24 giờ HH:MM (ví dụ 17:00)';
   if (kt <= bd) return 'Giờ kết thúc phải sau giờ bắt đầu (trong cùng một ngày)';
@@ -74,8 +78,8 @@ function validateGioLamViec(bd, kt) {
 const emptyForm = {
   ngay: todayStr(),
   lo_id: '',
-  dat: 0,
-  hu_bo: 0,
+  dat: '',
+  hu_bo: '',
   tg_bat_dau: '',
   tg_ket_thuc: '',
   loi_nguoi_dung: '',
@@ -155,6 +159,27 @@ export default function BaoCaoFormPage() {
     e.preventDefault();
     setError('');
 
+    // Các ô bắt buộc nhập (không được bỏ trống)
+    if (!maVatTuFilter) {
+      setError('Phải chọn vật tư');
+      return;
+    }
+    if (!form.lo_id) {
+      setError('Phải chọn lô');
+      return;
+    }
+    if (form.dat === '' || form.dat === null) {
+      setError('Phải nhập số lượng Đạt');
+      return;
+    }
+    if (form.hu_bo === '' || form.hu_bo === null) {
+      setError('Phải nhập số lượng Hư bỏ');
+      return;
+    }
+    if (!form.loi_nguoi_dung.trim()) {
+      setError('Phải nhập Lỗi');
+      return;
+    }
     if (form.nhansu_ids.length === 0) {
       setError('Phải chọn ít nhất 1 nhân viên tham gia');
       return;
@@ -227,10 +252,13 @@ export default function BaoCaoFormPage() {
               vatTuPlaceholder="Gõ mã hoặc tên vật tư để lọc lô..."
               disabled={disabled}
               showLoai={false}
+              vatTuRequired
             />
 
             <div className="field">
-              <label>Lô</label>
+              <label>
+                Lô<span className="req">*</span>
+              </label>
               <SearchableSelect
                 options={loList}
                 getValue={loValue}
@@ -250,7 +278,9 @@ export default function BaoCaoFormPage() {
             </div>
 
             <div className="field">
-              <label>Đạt</label>
+              <label>
+                Đạt<span className="req">*</span>
+              </label>
               <input
                 type="number"
                 min="0"
@@ -263,7 +293,9 @@ export default function BaoCaoFormPage() {
             </div>
 
             <div className="field">
-              <label>Hư bỏ</label>
+              <label>
+                Hư bỏ<span className="req">*</span>
+              </label>
               <input
                 type="number"
                 min="0"
@@ -285,6 +317,7 @@ export default function BaoCaoFormPage() {
               value={form.tg_bat_dau}
               onChange={(v) => setForm({ ...form, tg_bat_dau: v })}
               disabled={disabled}
+              required
             />
 
             <TimeSelect
@@ -292,6 +325,7 @@ export default function BaoCaoFormPage() {
               value={form.tg_ket_thuc}
               onChange={(v) => setForm({ ...form, tg_ket_thuc: v })}
               disabled={disabled}
+              required
             />
 
             <div className="field checkbox-row" style={{ alignSelf: 'end' }}>
@@ -309,12 +343,15 @@ export default function BaoCaoFormPage() {
           </div>
 
           <div className="field" style={{ marginTop: 14 }}>
-            <label>Lỗi (ghi chú tự do)</label>
+            <label>
+              Lỗi (ghi chú tự do)<span className="req">*</span>
+            </label>
             <input
               value={form.loi_nguoi_dung}
               onChange={(e) => setForm({ ...form, loi_nguoi_dung: e.target.value })}
               disabled={disabled}
               placeholder="VD: trong mốp góc, rách bao..."
+              required
             />
           </div>
 
@@ -329,7 +366,9 @@ export default function BaoCaoFormPage() {
           </div>
 
           <div className="field" style={{ marginTop: 14 }}>
-            <label>Nhân sự tham gia</label>
+            <label>
+              Nhân sự tham gia<span className="req">*</span>
+            </label>
             <div className="checkbox-grid">
               {nhanSuList?.map((ns) => (
                 <label key={ns.id}>

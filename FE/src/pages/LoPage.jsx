@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatSoLuong } from '../format';
+import { useRowSelect } from '../hooks/useRowSelect';
 import { listLo, createLo, updateLo, deleteLo } from '../api/loApi';
 import { listVatTu } from '../api/vattuApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
@@ -27,6 +28,7 @@ export default function LoPage() {
   const vatTuList = vatTuData?.data;
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const nccList = nccData?.data || [];
+  const { getRowProps } = useRowSelect();
 
   function updateFilters(patch) {
     setFilters((f) => ({ ...f, ...patch }));
@@ -141,14 +143,26 @@ export default function LoPage() {
               </thead>
               <tbody>
                 {data?.data.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} {...getRowProps(row.id)}>
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.so_lo}</td>
                     {/* <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
                     <td><TruncatedText text={row.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
                     <td>{formatSoLuong(row.so_luong_lo)}</td>
-                    <td>{formatSoLuong(row.da_lua)}</td>
+                    <td>
+                      <div>{formatSoLuong(row.da_lua)}</div>
+                      {(Number(row.da_lua_gan_ron) > 0 || Number(row.da_lua_cat_ty) > 0) && (
+                        <div className="field-hint" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                          {Number(row.da_lua_gan_ron) > 0 && (
+                            <div>Gắn ron: {formatSoLuong(row.da_lua_gan_ron)}</div>
+                          )}
+                          {Number(row.da_lua_cat_ty) > 0 && (
+                            <div>Cắt ty: {formatSoLuong(row.da_lua_cat_ty)}</div>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${Number(row.con_lai) <= 0 ? 'badge-success' : 'badge-warning'}`}>
                         {formatSoLuong(row.con_lai)}
