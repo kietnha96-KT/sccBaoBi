@@ -31,6 +31,14 @@ export function getErrorMessage(err) {
   return err.response?.data?.message || err.message || 'Đã có lỗi xảy ra';
 }
 
+// Gửi 1 file Excel (File object) lên endpoint import, trả về JSON kết quả
+export async function importExcel(url, file) {
+  const res = await client.post(url, file, {
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+  });
+  return res.data;
+}
+
 // Tải file Excel từ 1 endpoint export, kích hoạt tải xuống trên trình duyệt
 export async function downloadExcel(url, params, fileName) {
   const res = await client.get(url, { params, responseType: 'blob' });

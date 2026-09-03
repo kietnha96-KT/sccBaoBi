@@ -6,6 +6,7 @@ import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import ImportExcelButton from '../components/ImportExcelButton';
 import TruncatedText from '../components/TruncatedText';
 import { PAGE_SIZE } from '../constants';
 
@@ -100,6 +101,11 @@ export default function NhaCungCapPage() {
             >
               Xuất Excel
             </button>
+            <ImportExcelButton
+              endpoint="/nhacungcap/import"
+              columnsHint="Mã nhà cung cấp, Tên nhà cung cấp"
+              onImported={reload}
+            />
             <button className="btn btn-primary btn-sm" onClick={openCreate}>
               + Thêm nhà cung cấp
             </button>

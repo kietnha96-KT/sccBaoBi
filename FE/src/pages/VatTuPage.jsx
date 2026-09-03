@@ -7,6 +7,7 @@ import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import TruncatedText from '../components/TruncatedText';
+import ImportExcelButton from '../components/ImportExcelButton';
 
 const PAGE_SIZE = 15;
 const emptyForm = { ma_vat_tu: '', ten_vat_tu: '', loai: '', thu_kho: '' };
@@ -127,6 +128,11 @@ export default function VatTuPage() {
             <button className="btn btn-sm" onClick={() => downloadExcel('/vattu/export', {}, 'danh_muc_vat_tu.xlsx')}>
               Xuất Excel
             </button>
+            <ImportExcelButton
+              endpoint="/vattu/import"
+              columnsHint="Mã vật tư, Tên vật tư, Loại, Thủ kho"
+              onImported={reload}
+            />
             <button className="btn btn-primary btn-sm" onClick={openCreate}>
               + Thêm vật tư
             </button>

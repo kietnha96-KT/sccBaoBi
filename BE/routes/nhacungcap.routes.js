@@ -4,10 +4,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { readRows, importCatalogByCode } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const rawFile = express.raw({ type: () => true, limit: '15mb' });
 
 // GET /api/nhacungcap - danh sach nha cung cap (moi nguoi dang nhap), co phan trang + tim kiem
 // ?search= tim theo ma hoac ten
@@ -53,6 +56,40 @@ router.get(
       ],
       rows: result.rows,
     });
+  })
+);
+
+// POST /api/nhacungcap/import - admin nạp danh sách nhà cung cấp từ file Excel (.xlsx)
+// Cột chấp nhận (dòng đầu là tiêu đề): Mã nhà cung cấp, Tên nhà cung cấp.
+// Mã đã tồn tại -> KHÔNG nạp, chỉ liệt kê lại để tự xử lý.
+router.post(
+  '/import',
+  requireAdmin,
+  rawFile,
+  asyncHandler(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
+    }
+    let rows;
+    try {
+      ({ rows } = await readRows(req.body, {
+        ma_ncc: ['ma nha cung cap', 'ma ncc', 'ma', 'mancc'],
+        ten_ncc: ['ten nha cung cap', 'ten ncc', 'ten', 'name'],
+      }));
+    } catch (e) {
+      throw new AppError(400, e.message);
+    }
+
+    const result = await importCatalogByCode(pool, rows, {
+      table: 'NhaCungCap',
+      codeField: 'ma_ncc',
+      labelField: 'ten_ncc',
+      fields: [
+        { name: 'ma_ncc', required: true },
+        { name: 'ten_ncc', required: true },
+      ],
+    });
+    res.json(result);
   })
 );
 

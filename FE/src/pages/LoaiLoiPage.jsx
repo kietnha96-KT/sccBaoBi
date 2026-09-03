@@ -7,6 +7,7 @@ import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import ImportExcelButton from '../components/ImportExcelButton';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -91,6 +92,11 @@ export default function LoaiLoiPage() {
             <button className="btn btn-sm" onClick={() => downloadExcel('/loailoi/export', {}, 'danh_muc_loi.xlsx')}>
               Xuất Excel
             </button>
+            <ImportExcelButton
+              endpoint="/loailoi/import"
+              columnsHint="Mã vật tư, Tên lỗi"
+              onImported={reload}
+            />
             <button className="btn btn-primary btn-sm" onClick={openCreate}>
               + Thêm loại lỗi
             </button>

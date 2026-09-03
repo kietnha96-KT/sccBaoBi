@@ -4,10 +4,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { readRows, importLoaiLoi } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const rawFile = express.raw({ type: () => true, limit: '15mb' });
 
 const LOAILOI_SELECT = `
   SELECT ll.*, v.ten_vat_tu
@@ -59,6 +62,32 @@ router.get(
       ],
       rows: result.rows,
     });
+  })
+);
+
+// POST /api/loailoi/import - nạp danh sách loại lỗi từ file Excel (.xlsx)
+// Cột chấp nhận (dòng đầu là tiêu đề): Mã vật tư, Tên lỗi.
+// Mã vật tư phải tồn tại; cặp (mã vật tư + tên lỗi) đã có -> bỏ qua (không tạo trùng).
+router.post(
+  '/import',
+  requireStaff,
+  rawFile,
+  asyncHandler(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
+    }
+    let rows;
+    try {
+      ({ rows } = await readRows(req.body, {
+        ma_vat_tu: ['ma vat tu', 'ma', 'mavt'],
+        ten_loi: ['ten loi', 'loi', 'ten'],
+      }));
+    } catch (e) {
+      throw new AppError(400, e.message);
+    }
+
+    const result = await importLoaiLoi(pool, rows);
+    res.json(result);
   })
 );
 

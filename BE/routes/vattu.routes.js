@@ -4,10 +4,14 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
+const { readRows, importCatalogByCode } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+// nhận nguyên file (bất kể Content-Type) làm Buffer cho các route /import
+const rawFile = express.raw({ type: () => true, limit: '15mb' });
 
 // GET /api/vattu - danh sách vật tư (mọi người đăng nhập), co phan trang + tim kiem + loc theo loai
 // ?search= tim theo ma hoac ten (ILIKE co dau)
@@ -105,6 +109,44 @@ router.post(
       [ma_vat_tu, ten_vat_tu, loai || null, thu_kho || null]
     );
     res.status(201).json(result.rows[0]);
+  })
+);
+
+// POST /api/vattu/import - admin nạp danh sách vật tư từ file Excel (.xlsx)
+// Cột chấp nhận (dòng đầu là tiêu đề): Mã vật tư, Tên vật tư, Loại, Thủ kho.
+// Mã đã tồn tại -> KHÔNG nạp, chỉ liệt kê lại để tự xử lý.
+router.post(
+  '/import',
+  requireAdmin,
+  rawFile,
+  asyncHandler(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
+    }
+    let rows;
+    try {
+      ({ rows } = await readRows(req.body, {
+        ma_vat_tu: ['ma vat tu', 'ma', 'mavt', 'ma vattu'],
+        ten_vat_tu: ['ten vat tu', 'ten', 'ten vattu', 'name'],
+        loai: ['loai', 'loai vat tu', 'nhom'],
+        thu_kho: ['thu kho', 'nguoi giu kho'],
+      }));
+    } catch (e) {
+      throw new AppError(400, e.message);
+    }
+
+    const result = await importCatalogByCode(pool, rows, {
+      table: 'VatTu',
+      codeField: 'ma_vat_tu',
+      labelField: 'ten_vat_tu',
+      fields: [
+        { name: 'ma_vat_tu', required: true },
+        { name: 'ten_vat_tu', required: true },
+        { name: 'loai', nullable: true },
+        { name: 'thu_kho', nullable: true },
+      ],
+    });
+    res.json(result);
   })
 );
 
