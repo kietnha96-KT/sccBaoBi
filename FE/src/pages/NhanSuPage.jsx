@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listNhanSu, createNhanSu, updateNhanSu, resetPassword, deleteNhanSu } from '../api/nhansuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
@@ -6,6 +6,7 @@ import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import SelectionActionBar from '../components/SelectionActionBar';
 import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien' };
@@ -23,12 +24,25 @@ export default function NhanSuPage() {
     () => listNhanSu({ page, limit: PAGE_SIZE, search: search || undefined }),
     [page, search]
   );
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
   const [modal, setModal] = useState(null); // 'create' | { edit: row } | { reset: row }
   const [form, setForm] = useState(emptyForm);
   const [resetPwd, setResetPwd] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
+
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [search, page, setSelectedRowId]);
+
+  function openReset(row) {
+    if (!row) return;
+    setResetPwd('');
+    setFormError('');
+    setModal({ reset: row });
+  }
 
   function openCreate() {
     setForm(emptyForm);
@@ -53,7 +67,8 @@ export default function NhanSuPage() {
         await updateNhanSu(modal.edit.id, { ho_ten: form.ho_ten, vai_tro: form.vai_tro });
       }
       setModal(null);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -77,17 +92,19 @@ export default function NhanSuPage() {
   }
 
   async function handleDelete(row) {
+    if (!row) return;
     if (!confirm(`Xóa nhân sự "${row.ho_ten}"?`)) return;
     try {
       await deleteNhanSu(row.id);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       alert(getErrorMessage(err));
     }
   }
 
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Quản lý nhân sự
       </h1>
@@ -119,6 +136,24 @@ export default function NhanSuPage() {
             </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để thao tác"
+          label={selectedRow && `#${selectedRow.id} · ${selectedRow.ho_ten} (${selectedRow.username})`}
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
+            Sửa
+          </button>
+          <button className="btn btn-sm" onClick={() => openReset(selectedRow)}>
+            Đặt lại MK
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(selectedRow)}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -131,7 +166,6 @@ export default function NhanSuPage() {
                   <th>Username</th>
                   <th>Vai trò</th>
                   <th>Ngày tạo</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -146,31 +180,11 @@ export default function NhanSuPage() {
                       </span>
                     </td>
                     <td>{new Date(row.created_at).toLocaleDateString('vi-VN')}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-sm" onClick={() => openEdit(row)}>
-                          Sửa
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => {
-                            setResetPwd('');
-                            setFormError('');
-                            setModal({ reset: row });
-                          }}
-                        >
-                          Đặt lại MK
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="empty-state">
+                    <td colSpan={5} className="empty-state">
                       {search ? 'Không tìm thấy nhân sự phù hợp' : 'Chưa có nhân sự nào'}
                     </td>
                   </tr>

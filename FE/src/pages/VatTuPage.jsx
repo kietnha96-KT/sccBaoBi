@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listVatTu, listLoaiVatTu, createVatTu, updateVatTu, deleteVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import TruncatedText from '../components/TruncatedText';
 import ImportExcelButton from '../components/ImportExcelButton';
+import SelectionActionBar from '../components/SelectionActionBar';
 
 const PAGE_SIZE = 15;
 const emptyForm = { ma_vat_tu: '', ten_vat_tu: '', loai: '', thu_kho: '' };
@@ -21,12 +22,20 @@ export default function VatTuPage() {
     [page, search, loaiFilter]
   );
   const { data: loaiOptions } = useFetch(listLoaiVatTu, []);
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
 
   const [modal, setModal] = useState(null); // 'create' | { edit: row }
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const rows = data?.data || [];
+  const selectedRow = rows.find((r) => r.ma_vat_tu === selectedRowId) || null;
+
+  // đổi bộ lọc / trang -> bỏ chọn (dòng cũ có thể không còn trong kết quả)
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [search, loaiFilter, page, setSelectedRowId]);
 
   function openCreate() {
     setForm(emptyForm);
@@ -61,7 +70,8 @@ export default function VatTuPage() {
         });
       }
       setModal(null);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -70,19 +80,19 @@ export default function VatTuPage() {
   }
 
   async function handleDelete(row) {
+    if (!row) return;
     if (!confirm(`Xóa vật tư "${row.ten_vat_tu}"?`)) return;
     try {
       await deleteVatTu(row.ma_vat_tu);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       alert(getErrorMessage(err));
     }
   }
 
-  const rows = data?.data || [];
-
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Danh mục vật tư
       </h1>
@@ -138,6 +148,21 @@ export default function VatTuPage() {
             </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để Sửa / Xóa"
+          label={selectedRow && `${selectedRow.ma_vat_tu} — ${selectedRow.ten_vat_tu}`}
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
+            Sửa
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(selectedRow)}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -149,7 +174,6 @@ export default function VatTuPage() {
                   <th>Tên vật tư</th>
                   <th>Loại</th>
                   <th>Thủ kho</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -159,21 +183,11 @@ export default function VatTuPage() {
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td>{row.loai || <span className="field-hint">Chưa gán</span>}</td>
                     <td>{row.thu_kho || <span className="field-hint">Chưa gán</span>}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-sm" onClick={() => openEdit(row)}>
-                          Sửa
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="empty-state">
+                    <td colSpan={4} className="empty-state">
                       {search || loaiFilter ? 'Không tìm thấy vật tư phù hợp' : 'Chưa có vật tư nào'}
                     </td>
                   </tr>

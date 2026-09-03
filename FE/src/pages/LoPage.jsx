@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatSoLuong } from '../format';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { listLo, createLo, updateLo, deleteLo } from '../api/loApi';
@@ -9,6 +9,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
+import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
@@ -28,7 +29,14 @@ export default function LoPage() {
   const vatTuList = vatTuData?.data;
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const nccList = nccData?.data || [];
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
+
+  const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
+
+  // đổi bộ lọc / trang -> bỏ chọn
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [filters.ma_vat_tu, filters.so_lo, page, setSelectedRowId]);
 
   function updateFilters(patch) {
     setFilters((f) => ({ ...f, ...patch }));
@@ -70,7 +78,8 @@ export default function LoPage() {
         await updateLo(modal.edit.id, payload);
       }
       setModal(null);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -79,17 +88,19 @@ export default function LoPage() {
   }
 
   async function handleDelete(row) {
+    if (!row) return;
     if (!confirm(`Xóa lô "${row.so_lo}"?`)) return;
     try {
       await deleteLo(row.id);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       alert(getErrorMessage(err));
     }
   }
 
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Danh mục lô
       </h1>
@@ -123,6 +134,21 @@ export default function LoPage() {
             </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để Sửa / Xóa"
+          label={selectedRow && `Lô ${selectedRow.so_lo} · ${selectedRow.ma_vat_tu}`}
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
+            Sửa
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(selectedRow)}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -138,7 +164,6 @@ export default function LoPage() {
                   <th>Số lượng lô</th>
                   <th>Đã lựa</th>
                   <th>Còn lại</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -168,21 +193,11 @@ export default function LoPage() {
                         {formatSoLuong(row.con_lai)}
                       </span>
                     </td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-sm" onClick={() => openEdit(row)}>
-                          Sửa
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="empty-state">
+                    <td colSpan={7} className="empty-state">
                       Chưa có lô nào
                     </td>
                   </tr>

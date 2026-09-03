@@ -100,9 +100,13 @@ a {
   border-left: 3px solid transparent;
 }
 
-.sidebar-link:hover {
-  background: var(--sidebar-active);
-  color: #fff;
+/* Chỉ áp hiệu ứng hover trên thiết bị có chuột thật -> tránh "dính hover"
+   sau khi chạm/bấm trên điện thoại (touch giữ trạng thái :hover đến khi chạm chỗ khác). */
+@media (hover: hover) {
+  .sidebar-link:hover {
+    background: var(--sidebar-active);
+    color: #fff;
+  }
 }
 
 .sidebar-link.active {
@@ -532,6 +536,62 @@ table.data-table {
   max-width: 240px;
 }
 
+/* Ô chọn "Lỗi chuẩn" trong bảng báo cáo: cố định bề rộng cho đều các dòng,
+   nội dung dài tự cắt bằng "…" (di chuột / title để xem đủ). */
+.loi-chuan-select {
+  width: 100px;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Thanh hành động theo dòng đang chọn ---------- */
+/* PC: nằm ngay dưới card-header, trên bảng */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+
+.selection-bar.active {
+  background: #eef2ff;
+}
+
+.selection-bar-info {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  /* Mobile: chỉ hiện khi có dòng đang chọn, ghim đáy màn hình */
+  .selection-bar:not(.active) {
+    display: none;
+  }
+  .selection-bar.active {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    border-top: 1px solid var(--border);
+    border-bottom: none;
+    box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.14);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  /* chừa chỗ cho thanh cố định, khỏi che dòng cuối / phân trang */
+  .has-selection-bar {
+    padding-bottom: 76px;
+  }
+}
+
 /* ---------- Freeze pane: đông cứng cột trái khi cuộn ngang ---------- */
 /* Mặc định: đông cứng cột đầu tiên (đa số bảng cột đầu là "Mã vật tư").
    Bỏ qua các bảng .freeze-2 / .freeze-3 vì chúng có quy tắc riêng bên dưới. */
@@ -835,6 +895,10 @@ table.data-table {
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+.modal-box.modal-lg {
+  max-width: 760px;
 }
 
 /* ---------- Hamburger (di động) ---------- */

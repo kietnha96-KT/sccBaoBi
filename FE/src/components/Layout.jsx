@@ -33,7 +33,7 @@ export default function Layout() {
 
         <nav className="sidebar-nav" onClick={closeMobile}>
           <div className="sidebar-section">Báo cáo</div>
-          <NavLink to="/baocao" className={navLinkClass}>
+          <NavLink to="/baocao" end className={navLinkClass}>
             Danh sách báo cáo
           </NavLink>
           <NavLink to="/baocao/moi" className={navLinkClass}>

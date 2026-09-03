@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listNhaCungCap, createNhaCungCap, updateNhaCungCap, deleteNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
@@ -7,6 +7,7 @@ import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import ImportExcelButton from '../components/ImportExcelButton';
+import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import { PAGE_SIZE } from '../constants';
 
@@ -19,12 +20,19 @@ export default function NhaCungCapPage() {
     () => listNhaCungCap({ page, limit: PAGE_SIZE, search: search || undefined }),
     [page, search]
   );
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
 
   const [modal, setModal] = useState(null); // 'create' | { edit: row }
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const rows = data?.data || [];
+  const selectedRow = rows.find((r) => r.ma_ncc === selectedRowId) || null;
+
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [search, page, setSelectedRowId]);
 
   function openCreate() {
     setForm(emptyForm);
@@ -50,7 +58,8 @@ export default function NhaCungCapPage() {
         await updateNhaCungCap(modal.edit.ma_ncc, { ten_ncc: form.ten_ncc });
       }
       setModal(null);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -59,19 +68,19 @@ export default function NhaCungCapPage() {
   }
 
   async function handleDelete(row) {
+    if (!row) return;
     if (!confirm(`Xóa nhà cung cấp "${row.ten_ncc}"?`)) return;
     try {
       await deleteNhaCungCap(row.ma_ncc);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       alert(getErrorMessage(err));
     }
   }
 
-  const rows = data?.data || [];
-
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Danh mục nhà cung cấp
       </h1>
@@ -111,6 +120,21 @@ export default function NhaCungCapPage() {
             </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để Sửa / Xóa"
+          label={selectedRow && `${selectedRow.ma_ncc} — ${selectedRow.ten_ncc}`}
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
+            Sửa
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(selectedRow)}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -120,7 +144,6 @@ export default function NhaCungCapPage() {
                 <tr>
                   <th>Mã nhà cung cấp</th>
                   <th>Tên nhà cung cấp</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -128,21 +151,11 @@ export default function NhaCungCapPage() {
                   <tr key={row.ma_ncc} {...getRowProps(row.ma_ncc)}>
                     <td>{row.ma_ncc}</td>
                     <td><TruncatedText text={row.ten_ncc} maxWidth={240} /></td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-sm" onClick={() => openEdit(row)}>
-                          Sửa
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="empty-state">
+                    <td colSpan={2} className="empty-state">
                       {search ? 'Không tìm thấy nhà cung cấp phù hợp' : 'Chưa có nhà cung cấp nào'}
                     </td>
                   </tr>

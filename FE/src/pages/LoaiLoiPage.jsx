@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listLoaiLoi, createLoaiLoi, updateLoaiLoi, deleteLoaiLoi } from '../api/loailoiApi';
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
@@ -8,6 +8,7 @@ import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import ImportExcelButton from '../components/ImportExcelButton';
+import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -21,7 +22,13 @@ export default function LoaiLoiPage() {
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
+
+  const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
+
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [maVatTuFilter, page, setSelectedRowId]);
 
   function handleFilterChange(v) {
     setMaVatTuFilter(v);
@@ -56,7 +63,8 @@ export default function LoaiLoiPage() {
         await updateLoaiLoi(modal.edit.id, { ten_loi: form.ten_loi });
       }
       setModal(null);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -65,17 +73,19 @@ export default function LoaiLoiPage() {
   }
 
   async function handleDelete(row) {
+    if (!row) return;
     if (!confirm(`Xóa loại lỗi "${row.ten_loi}"?`)) return;
     try {
       await deleteLoaiLoi(row.id);
-      reload();
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       alert(getErrorMessage(err));
     }
   }
 
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Danh mục loại lỗi
       </h1>
@@ -102,6 +112,21 @@ export default function LoaiLoiPage() {
             </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để Sửa / Xóa"
+          label={selectedRow && `${selectedRow.ma_vat_tu} · ${selectedRow.ten_loi}`}
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
+            Sửa
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(selectedRow)}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -112,7 +137,6 @@ export default function LoaiLoiPage() {
                   <th>Mã vật tư</th>
                   <th>Tên vật tư</th>
                   <th>Tên lỗi</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -121,16 +145,6 @@ export default function LoaiLoiPage() {
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-sm" onClick={() => openEdit(row)}>
-                          Sửa
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (

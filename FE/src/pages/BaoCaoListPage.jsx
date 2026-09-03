@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { formatSoLuong, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
 import { listBaoCao, deleteBaoCao, ganLoiChuan } from '../api/baocaoApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
@@ -11,6 +11,9 @@ import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../hooks/useAuth';
 import Alert from '../components/Alert';
+import Modal from '../components/Modal';
+import BaoCaoForm from '../components/BaoCaoForm';
+import SelectionActionBar from '../components/SelectionActionBar';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
@@ -34,7 +37,10 @@ export default function BaoCaoListPage() {
   const { user, isAdmin, isStaff } = useAuth();
   const [filters, setFilters] = useState(emptyFilters);
   const [actionError, setActionError] = useState('');
-  const { getRowProps } = useRowSelect();
+  // null = đóng | 'create' = nhập mới | { editId } = sửa báo cáo đó
+  const [formModal, setFormModal] = useState(null);
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
+  useCloseOnBackButton(!!formModal, () => setFormModal(null));
 
   const { data, loading, error, reload } = useFetch(
     () => listBaoCao(cleanParams(filters)),
@@ -74,15 +80,40 @@ export default function BaoCaoListPage() {
   }
 
   function updateFilter(patch) {
+    setSelectedRowId(null); // dòng đang chọn có thể không còn ở trang/kết quả mới
     setFilters((f) => ({ ...f, ...patch, page: patch.page ?? 1 }));
   }
 
-  async function handleDelete(row) {
-    if (!confirm(`Xóa báo cáo #${row.id}?`)) return;
+  const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
+  const canModifySelected = selectedRow && (selectedRow.co_the_sua_xoa_hom_nay || isAdmin);
+
+  // Nút Sửa/Xóa trên thanh hành động - kiểm khóa "qua ngày" tại đây (backend vẫn chặn lần nữa)
+  function suaDaChon() {
+    if (!selectedRow) return;
+    if (!canModifySelected) {
+      alert(
+        `Báo cáo #${selectedRow.id} đã khóa (không còn trong ngày nhập). Chỉ admin mới sửa/xóa được.`
+      );
+      return;
+    }
+    setActionError('');
+    setFormModal({ editId: selectedRow.id });
+  }
+
+  async function xoaDaChon() {
+    if (!selectedRow) return;
+    if (!canModifySelected) {
+      alert(
+        `Báo cáo #${selectedRow.id} đã khóa (không còn trong ngày nhập). Chỉ admin mới sửa/xóa được.`
+      );
+      return;
+    }
+    if (!confirm(`Xóa báo cáo #${selectedRow.id}?`)) return;
     setActionError('');
     try {
-      await deleteBaoCao(row.id);
-      reload();
+      await deleteBaoCao(selectedRow.id);
+      setSelectedRowId(null);
+      reload({ silent: true });
     } catch (err) {
       setActionError(getErrorMessage(err));
     }
@@ -92,16 +123,24 @@ export default function BaoCaoListPage() {
     setActionError('');
     try {
       await ganLoiChuan(row.id, loiChuanId || null);
-      reload();
+      reload({ silent: true });
     } catch (err) {
       setActionError(getErrorMessage(err));
+    }
+  }
+
+  function handleFormDone(saved) {
+    setFormModal(null);
+    if (saved) {
+      setSelectedRowId(null);
+      reload({ silent: true });
     }
   }
 
   const pagination = data?.pagination;
 
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title" style={{ marginBottom: 16 }}>
         Danh sách báo cáo
       </h1>
@@ -176,7 +215,14 @@ export default function BaoCaoListPage() {
           </button>
         </div>
         <div className="field">
-          <button type="button" className="btn" onClick={() => setFilters(emptyFilters)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setSelectedRowId(null);
+              setFilters(emptyFilters);
+            }}
+          >
             Xóa bộ lọc
           </button>
         </div>
@@ -192,11 +238,34 @@ export default function BaoCaoListPage() {
             >
               Xuất Excel
             </button>
-            <Link to="/baocao/moi" className="btn btn-primary btn-sm">
+            <button className="btn btn-primary btn-sm" onClick={() => setFormModal('create')}>
               + Nhập báo cáo
-            </Link>
+            </button>
           </div>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng trong bảng để Sửa / Xóa"
+          label={
+            selectedRow && (
+              <>
+                Báo cáo <strong>#{selectedRow.id}</strong> · {selectedRow.ma_vat_tu} ·{' '}
+                {new Date(selectedRow.ngay).toLocaleDateString('vi-VN')}
+                {!canModifySelected && <span className="field-hint"> · đã khóa</span>}
+              </>
+            )
+          }
+        >
+          <button className="btn btn-sm btn-primary" onClick={suaDaChon}>
+            Sửa
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={xoaDaChon}>
+            Xóa
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -216,8 +285,8 @@ export default function BaoCaoListPage() {
                   <th>Nhân sự tham gia</th>
                   <th>Lỗi (tự do)</th>
                   <th>Lựa lại</th>
-                  {isStaff && <th>Lỗi chuẩn (gán nhãn)</th>}
-                  <th></th>
+                  {isStaff && <th>Lỗi chuẩn</th>}
+                  <th>Khóa</th>
                 </tr>
               </thead>
               <tbody>
@@ -244,6 +313,8 @@ export default function BaoCaoListPage() {
                     {isStaff && (
                       <td>
                         <select
+                          className="loi-chuan-select"
+                          title={row.loi_chuan_ten || 'Chưa gán'}
                           value={row.loi_chuan_id || ''}
                           onChange={(e) => handleGanLoi(row, e.target.value ? Number(e.target.value) : null)}
                         >
@@ -259,26 +330,15 @@ export default function BaoCaoListPage() {
                       </td>
                     )}
                     <td>
-                      <div className="row-actions">
-                        {row.co_the_sua_xoa_hom_nay || isAdmin ? (
-                          <>
-                            <Link to={`/baocao/${row.id}/sua`} className="btn btn-sm">
-                              Sửa
-                            </Link>
-                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(row)}>
-                              Xóa
-                            </button>
-                          </>
-                        ) : (
-                          <span className="field-hint">Đã khóa</span>
-                        )}
-                      </div>
+                      {!(row.co_the_sua_xoa_hom_nay || isAdmin) && (
+                        <span className="field-hint">🔒 Đã khóa</span>
+                      )}
                     </td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="empty-state">
+                    <td colSpan={isStaff ? 14 : 13} className="empty-state">
                       Không có báo cáo nào khớp bộ lọc
                     </td>
                   </tr>
@@ -290,6 +350,19 @@ export default function BaoCaoListPage() {
 
         <Pagination pagination={pagination} onPageChange={(p) => updateFilter({ page: p })} />
       </div>
+
+      {formModal && (
+        <Modal
+          title={formModal === 'create' ? 'Nhập báo cáo lựa vật tư' : `Sửa báo cáo #${formModal.editId}`}
+          onClose={() => setFormModal(null)}
+          size="lg"
+        >
+          <BaoCaoForm
+            id={formModal === 'create' ? undefined : formModal.editId}
+            onDone={handleFormDone}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
