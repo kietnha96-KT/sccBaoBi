@@ -5,12 +5,14 @@ const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { BC_CALC_CTE } = require('../utils/productivity');
 
 const router = express.Router();
 router.use(authenticateToken);
 
+// dùng bc_nang_suat (từ BC_CALC_CTE) thay cho BaoCao -> có sẵn nang_suat_8h cho từng dòng
 const BASE_FROM = `
-  FROM BaoCao bc
+  FROM bc_nang_suat bc
   JOIN Lo l ON l.id = bc.lo_id
   JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
   JOIN NhanSu ns ON ns.id = bc.nguoi_nhap_id
@@ -18,10 +20,12 @@ const BASE_FROM = `
 `;
 
 const LIST_SELECT = `
+  ${BC_CALC_CTE}
   SELECT
     bc.id, bc.ngay, bc.lo_id, bc.dat, bc.hu_bo, bc.tong_lua,
     bc.tg_bat_dau, bc.tg_ket_thuc, bc.nguoi_nhap_id, bc.loi_nguoi_dung,
     bc.loi_chuan_id, bc.la_lua_lai, bc.ghi_chu, bc.created_at,
+    bc.nang_suat_8h,
     l.so_lo, l.ma_vat_tu, l.so_luong_lo, v.ten_vat_tu,
     ns.ho_ten AS nguoi_nhap_ho_ten,
     ll.ten_loi AS loi_chuan_ten,
@@ -120,6 +124,8 @@ router.get(
       ...r,
       nhansu_tham_gia: (r.nhansu_tham_gia || []).map((n) => n.ho_ten).join(', '),
       la_lua_lai: r.la_lua_lai ? 'Có' : 'Không',
+      // năng suất trong CTE chưa làm tròn -> làm tròn 2 số ở đây, giữ kiểu số cho Excel
+      nang_suat_8h: r.nang_suat_8h == null ? null : Math.round(Number(r.nang_suat_8h) * 100) / 100,
     }));
 
     await sendExcel(res, {
@@ -136,6 +142,7 @@ router.get(
         { header: 'Tổng lựa', key: 'tong_lua', width: 12 },
         { header: 'Giờ bắt đầu', key: 'tg_bat_dau', width: 12 },
         { header: 'Giờ kết thúc', key: 'tg_ket_thuc', width: 12 },
+        { header: 'Năng suất (quy 8h)', key: 'nang_suat_8h', width: 16 },
         { header: 'Người nhập', key: 'nguoi_nhap_ho_ten', width: 22 },
         { header: 'Nhân sự tham gia', key: 'nhansu_tham_gia', width: 35 },
         { header: 'Lỗi (người dùng nhập)', key: 'loi_nguoi_dung', width: 30 },

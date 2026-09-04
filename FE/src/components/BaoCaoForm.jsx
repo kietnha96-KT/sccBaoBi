@@ -8,6 +8,7 @@ import { formatSoLuong } from '../format';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
 import Alert from './Alert';
+import NumberInput from './NumberInput';
 import SearchableSelect from './SearchableSelect';
 import VatTuFilterFields from './VatTuFilterFields';
 import { ALL_LIMIT } from '../constants';
@@ -275,12 +276,9 @@ export default function BaoCaoForm({ id, onDone }) {
           <label>
             Đạt<span className="req">*</span>
           </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
+          <NumberInput
             value={form.dat}
-            onChange={(e) => setForm({ ...form, dat: e.target.value })}
+            onChange={(v) => setForm({ ...form, dat: v })}
             disabled={disabled}
             required
           />
@@ -290,12 +288,9 @@ export default function BaoCaoForm({ id, onDone }) {
           <label>
             Hư bỏ<span className="req">*</span>
           </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
+          <NumberInput
             value={form.hu_bo}
-            onChange={(e) => setForm({ ...form, hu_bo: e.target.value })}
+            onChange={(v) => setForm({ ...form, hu_bo: v })}
             disabled={disabled}
             required
           />
@@ -303,7 +298,7 @@ export default function BaoCaoForm({ id, onDone }) {
 
         <div className="field">
           <label>Tổng lựa</label>
-          <input value={(Number(form.dat) || 0) + (Number(form.hu_bo) || 0)} disabled />
+          <input value={formatSoLuong((Number(form.dat) || 0) + (Number(form.hu_bo) || 0))} disabled />
         </div>
 
         <TimeSelect

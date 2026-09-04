@@ -544,6 +544,36 @@ table.data-table {
   text-overflow: ellipsis;
 }
 
+/* ---------- Xem chi tiết (chỉ đọc) ---------- */
+.detail-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.detail-list dt {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.detail-list dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+@media (max-width: 560px) {
+  .detail-list {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+  .detail-list dt {
+    margin-top: 10px;
+  }
+}
+
 /* ---------- Thanh hành động theo dòng đang chọn ---------- */
 /* PC: nằm ngay dưới card-header, trên bảng */
 .selection-bar {
@@ -568,6 +598,18 @@ table.data-table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Chỉ số phụ (năng suất) - luôn hiện đủ, không bị cắt */
+.selection-bar-extra {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 900px) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatSoLuong, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
+import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
 import { listBaoCao, deleteBaoCao, ganLoiChuan } from '../api/baocaoApi';
@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import BaoCaoForm from '../components/BaoCaoForm';
+import BaoCaoDetail from '../components/BaoCaoDetail';
 import SelectionActionBar from '../components/SelectionActionBar';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
@@ -39,8 +40,12 @@ export default function BaoCaoListPage() {
   const [actionError, setActionError] = useState('');
   // null = đóng | 'create' = nhập mới | { editId } = sửa báo cáo đó
   const [formModal, setFormModal] = useState(null);
+  const [viewRow, setViewRow] = useState(null); // báo cáo đang xem (chỉ đọc)
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
-  useCloseOnBackButton(!!formModal, () => setFormModal(null));
+  useCloseOnBackButton(!!formModal || !!viewRow, () => {
+    setFormModal(null);
+    setViewRow(null);
+  });
 
   const { data, loading, error, reload } = useFetch(
     () => listBaoCao(cleanParams(filters)),
@@ -247,17 +252,31 @@ export default function BaoCaoListPage() {
         <SelectionActionBar
           selected={selectedRow}
           onClear={() => setSelectedRowId(null)}
-          idleHint="Bấm vào một dòng trong bảng để Sửa / Xóa"
+          idleHint="Bấm vào một dòng trong bảng để Xem / Sửa / Xóa"
           label={
             selectedRow && (
               <>
-                Báo cáo <strong>#{selectedRow.id}</strong> · {selectedRow.ma_vat_tu} ·{' '}
-                {new Date(selectedRow.ngay).toLocaleDateString('vi-VN')}
+                <strong>{selectedRow.ma_vat_tu}</strong> ·{' '}
+                {selectedRow.ten_vat_tu}
+                {/* {new Date(selectedRow.ngay).toLocaleDateString('vi-VN')} */}
                 {!canModifySelected && <span className="field-hint"> · đã khóa</span>}
               </>
             )
           }
+          extra={
+            selectedRow && (
+              <>
+                NS 8h:{' '}
+                <strong>
+                  {selectedRow.nang_suat_8h != null ? formatSoThapPhan(selectedRow.nang_suat_8h) : '—'}
+                </strong>
+              </>
+            )
+          }
         >
+          <button className="btn btn-sm" onClick={() => setViewRow(selectedRow)}>
+            Xem
+          </button>
           <button className="btn btn-sm btn-primary" onClick={suaDaChon}>
             Sửa
           </button>
@@ -276,7 +295,7 @@ export default function BaoCaoListPage() {
                   <th>ID</th>
                   <th>Ngày</th>
                   <th>Mã vật tư</th>
-                  <th>Tên vật tư</th>
+                  {/* <th>Tên vật tư</th> */}
                   <th>Số lô</th>
                   <th>Đạt</th>
                   <th>Hư bỏ</th>
@@ -284,8 +303,8 @@ export default function BaoCaoListPage() {
                   <th>Người nhập</th>
                   <th>Nhân sự tham gia</th>
                   <th>Lỗi (tự do)</th>
-                  <th>Lựa lại</th>
                   {isStaff && <th>Lỗi chuẩn</th>}
+                  <th>Lựa lại</th>
                   <th>Khóa</th>
                 </tr>
               </thead>
@@ -295,7 +314,7 @@ export default function BaoCaoListPage() {
                     <td>{row.id}</td>
                     <td>{new Date(row.ngay).toLocaleDateString('vi-VN')}</td>
                     <td>{row.ma_vat_tu}</td>
-                    <td><TruncatedText text={row.ten_vat_tu} /></td>
+                    {/* <td><TruncatedText text={row.ten_vat_tu} /></td> */}
                     <td>{row.so_lo}</td>
                     <td>{formatSoLuong(row.dat)}</td>
                     <td>{formatSoLuong(row.hu_bo)}</td>
@@ -303,13 +322,6 @@ export default function BaoCaoListPage() {
                     <td><TruncatedText text={row.nguoi_nhap_ho_ten} maxWidth={160} /></td>
                     <td><TruncatedText text={row.nhansu_tham_gia.map((n) => n.ho_ten).join(', ')} maxWidth={200} /></td>
                     <td><TruncatedText text={row.loi_nguoi_dung || '-'} maxWidth={200} /></td>
-                    <td>
-                      {row.la_lua_lai ? (
-                        <span className="badge badge-warning">Lựa lại</span>
-                      ) : (
-                        <span className="badge badge-muted">Lựa chính</span>
-                      )}
-                    </td>
                     {isStaff && (
                       <td>
                         <select
@@ -329,6 +341,13 @@ export default function BaoCaoListPage() {
                         </select>
                       </td>
                     )}
+                    <td>
+                      {row.la_lua_lai ? (
+                        <span className="badge badge-warning">Lựa lại</span>
+                      ) : (
+                        <span className="badge badge-muted">Lựa chính</span>
+                      )}
+                    </td>
                     <td>
                       {!(row.co_the_sua_xoa_hom_nay || isAdmin) && (
                         <span className="field-hint">🔒 Đã khóa</span>
@@ -361,6 +380,17 @@ export default function BaoCaoListPage() {
             id={formModal === 'create' ? undefined : formModal.editId}
             onDone={handleFormDone}
           />
+        </Modal>
+      )}
+
+      {viewRow && (
+        <Modal title={`Báo cáo #${viewRow.id}`} onClose={() => setViewRow(null)} size="lg">
+          <BaoCaoDetail baoCao={viewRow} />
+          <div className="btn-group" style={{ marginTop: 16 }}>
+            <button type="button" className="btn" onClick={() => setViewRow(null)}>
+              Đóng
+            </button>
+          </div>
         </Modal>
       )}
     </div>

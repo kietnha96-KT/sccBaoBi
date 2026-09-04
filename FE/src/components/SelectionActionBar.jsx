@@ -7,15 +7,17 @@
 // props:
 //  - selected  : object dòng đang chọn (hoặc null)
 //  - label     : mô tả dòng đang chọn (chuỗi / node)
+//  - extra     : nội dung phụ hiện tách riêng, KHÔNG bị cắt ellipsis (vd chỉ số năng suất)
 //  - idleHint  : câu gợi ý khi chưa chọn (PC)
 //  - onClear   : bỏ chọn
 //  - children  : các nút hành động (Sửa / Xóa / ...)
-export default function SelectionActionBar({ selected, label, idleHint, onClear, children }) {
+export default function SelectionActionBar({ selected, label, extra, idleHint, onClear, children }) {
   return (
     <div className={'selection-bar' + (selected ? ' active' : '')}>
       {selected ? (
         <>
           <span className="selection-bar-info">{label}</span>
+          {extra != null && <span className="selection-bar-extra">{extra}</span>}
           <div className="btn-group">
             {children}
             <button type="button" className="btn btn-sm" onClick={onClear}>

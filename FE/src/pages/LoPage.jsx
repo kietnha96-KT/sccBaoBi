@@ -8,6 +8,7 @@ import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
+import NumberInput from '../components/NumberInput';
 import Pagination from '../components/Pagination';
 import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
@@ -139,7 +140,14 @@ export default function LoPage() {
           selected={selectedRow}
           onClear={() => setSelectedRowId(null)}
           idleHint="Bấm vào một dòng để Sửa / Xóa"
-          label={selectedRow && `Lô ${selectedRow.so_lo} · ${selectedRow.ma_vat_tu}`}
+          label={
+            selectedRow && (
+              <>
+                <strong>{selectedRow.ma_vat_tu}</strong> ·{' '}
+                {selectedRow.ten_vat_tu}
+              </>
+            )
+          }
         >
           <button className="btn btn-sm btn-primary" onClick={() => openEdit(selectedRow)}>
             Sửa
@@ -157,7 +165,7 @@ export default function LoPage() {
               <thead>
                 <tr>
                   <th>Mã vật tư</th>
-                  <th>Tên vật tư</th>
+                  {/* <th>Tên vật tư</th> */}
                   <th>Số lô</th>
                   {/* <th>Ngày SX</th> */}
                   <th>Nhà cung cấp</th>
@@ -170,7 +178,7 @@ export default function LoPage() {
                 {data?.data.map((row) => (
                   <tr key={row.id} {...getRowProps(row.id)}>
                     <td>{row.ma_vat_tu}</td>
-                    <td><TruncatedText text={row.ten_vat_tu} /></td>
+                    {/* <td><TruncatedText text={row.ten_vat_tu} /></td> */}
                     <td>{row.so_lo}</td>
                     {/* <td>{row.ngay_san_xuat ? new Date(row.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
                     <td><TruncatedText text={row.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
@@ -214,16 +222,19 @@ export default function LoPage() {
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="field">
-                <label>Số lô</label>
-                <input value={form.so_lo} onChange={(e) => setForm({ ...form, so_lo: e.target.value })} required />
-              </div>
+
               <VatTuFilterFields
                 vatTuList={vatTuList}
                 value={form.ma_vat_tu}
                 onChange={(v) => setForm({ ...form, ma_vat_tu: v })}
                 allowClear={false}
               />
+
+              <div className="field">
+                <label>Số lô</label>
+                <input value={form.so_lo} onChange={(e) => setForm({ ...form, so_lo: e.target.value })} required />
+              </div>
+
               <div className="field">
                 <label>Nhà cung cấp</label>
                 <SearchableSelect
@@ -236,23 +247,21 @@ export default function LoPage() {
                   clearLabel="Chưa có nhà cung cấp"
                 />
               </div>
-              <div className="field">
+              
+              {/* <div className="field">
                 <label>Ngày sản xuất</label>
                 <input
                   type="date"
                   value={form.ngay_san_xuat}
                   onChange={(e) => setForm({ ...form, ngay_san_xuat: e.target.value })}
                 />
-              </div>
+              </div> */}
               
               <div className="field">
                 <label>Số lượng lô</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <NumberInput
                   value={form.so_luong_lo}
-                  onChange={(e) => setForm({ ...form, so_luong_lo: e.target.value })}
+                  onChange={(v) => setForm({ ...form, so_luong_lo: v })}
                   required
                 />
               </div>
