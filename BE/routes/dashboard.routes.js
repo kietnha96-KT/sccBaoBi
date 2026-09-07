@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { BC_CALC_CTE } = require('../utils/productivity');
 const { paginateArray } = require('../utils/pagination');
-const { SUM_LOI_DAC_BIET_COLS, SUM_DA_LUA_CHUAN } = require('../utils/loiDacBiet');
+const { LO_DA_LUA_JOIN, dacBietToText } = require('../utils/loiDacBiet');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -398,25 +398,15 @@ function buildTheoLoQuery(query) {
     SELECT
       l.id AS lo_id, l.so_lo, l.ma_vat_tu, v.ten_vat_tu, l.ngay_san_xuat, l.so_luong_lo,
       n.ten_ncc,
-      COALESCE(cap.da_lua, 0) AS da_lua,
-      COALESCE(cap.da_lua_gan_ron, 0) AS da_lua_gan_ron,
-      COALESCE(cap.da_lua_cat_ty, 0) AS da_lua_cat_ty,
-      l.so_luong_lo - COALESCE(cap.da_lua, 0) AS con_lai,
+      COALESCE(dl.da_lua, 0) AS da_lua,
+      COALESCE(dl.da_lua_dac_biet, '[]') AS da_lua_dac_biet,
+      l.so_luong_lo - COALESCE(dl.da_lua, 0) AS con_lai,
       COALESCE(agg.so_bao_cao, 0) AS so_bao_cao,
       agg.nang_suat_tb
     FROM Lo l
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
     LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
-    LEFT JOIN (
-      SELECT
-        bc.lo_id,
-        ${SUM_DA_LUA_CHUAN} AS da_lua,
-        ${SUM_LOI_DAC_BIET_COLS}
-      FROM BaoCao bc
-      LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
-      WHERE bc.la_lua_lai = FALSE
-      GROUP BY bc.lo_id
-    ) cap ON cap.lo_id = l.id
+    ${LO_DA_LUA_JOIN}
     LEFT JOIN (
       SELECT lo_id, COUNT(*) AS so_bao_cao, ROUND(AVG(nang_suat_8h)::numeric, 2) AS nang_suat_tb
       FROM bc_nang_suat bcns
@@ -443,6 +433,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
+    const rows = result.rows.map((r) => ({
+      ...r,
+      _dac_biet_txt: dacBietToText(r.da_lua_dac_biet),
+    }));
     await sendExcel(res, {
       sheetName: 'NangSuatLo',
       fileName: 'dashboard_nang_suat_theo_lo',
@@ -455,13 +449,12 @@ router.get(
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 14 },
         { header: 'Đã lựa (không tính lỗi đặc biệt)', key: 'da_lua', width: 22 },
-        { header: 'Gắn ron', key: 'da_lua_gan_ron', width: 12 },
-        { header: 'Cắt ty', key: 'da_lua_cat_ty', width: 12 },
+        { header: 'Lỗi đặc biệt (chi tiết)', key: '_dac_biet_txt', width: 32 },
         { header: 'Còn lại', key: 'con_lai', width: 14 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
       ],
-      rows: result.rows,
+      rows,
     });
   })
 );

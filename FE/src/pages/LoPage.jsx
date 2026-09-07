@@ -185,14 +185,11 @@ export default function LoPage() {
                     <td>{formatSoLuong(row.so_luong_lo)}</td>
                     <td>
                       <div>{formatSoLuong(row.da_lua)}</div>
-                      {(Number(row.da_lua_gan_ron) > 0 || Number(row.da_lua_cat_ty) > 0) && (
+                      {(row.da_lua_dac_biet || []).length > 0 && (
                         <div className="field-hint" style={{ fontSize: 11, lineHeight: 1.5 }}>
-                          {Number(row.da_lua_gan_ron) > 0 && (
-                            <div>Gắn ron: {formatSoLuong(row.da_lua_gan_ron)}</div>
-                          )}
-                          {Number(row.da_lua_cat_ty) > 0 && (
-                            <div>Cắt ty: {formatSoLuong(row.da_lua_cat_ty)}</div>
-                          )}
+                          {(row.da_lua_dac_biet || []).map((x) => (
+                            <div key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}</div>
+                          ))}
                         </div>
                       )}
                     </td>

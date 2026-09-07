@@ -51,6 +51,9 @@ export default function DashboardLoPage() {
   }
 
   const rows = data?.data || [];
+  // Cột "Tiến độ / đã lựa / còn lại" luôn tính theo báo cáo LỰA CHÍNH (không đổi theo filter,
+  // không lọc ngày). Khi đang lọc riêng "Lựa lại" thì con số này gây hiểu nhầm -> ẩn cột đi.
+  const hideTienDo = filters.la_lua_lai === 'true';
 
   return (
     <div>
@@ -80,7 +83,14 @@ export default function DashboardLoPage() {
 
       <div className="card">
         <div className="card-header">
-          <h2>Tiến độ lựa theo lô</h2>
+          <h2>
+            Tiến độ lựa theo lô
+            {hideTienDo && (
+              <span className="field-hint" style={{ fontWeight: 400, marginLeft: 8 }}>
+                (đang lọc Lựa lại — đã ẩn cột tiến độ)
+              </span>
+            )}
+          </h2>
           <button
             className="btn btn-sm"
             onClick={() => downloadExcel('/dashboard/lo/export', cleanParams(filters), 'dashboard_theo_lo.xlsx')}
@@ -100,7 +110,7 @@ export default function DashboardLoPage() {
                   <th>Số lô</th>
                   {/* <th>Ngày SX</th> */}
                   <th>Nhà cung cấp</th>
-                  <th>Tiến độ (đã lựa / tổng)</th>
+                  {!hideTienDo && <th>Tiến độ (đã lựa / tổng · còn lại)</th>}
                   <th>Số báo cáo</th>
                   <th>Năng suất TB (8h)</th>
                 </tr>
@@ -109,7 +119,11 @@ export default function DashboardLoPage() {
                 {rows.map((r) => {
                   const soLuong = Number(r.so_luong_lo) || 0;
                   const daLua = Number(r.da_lua) || 0;
+                  const conLai = Number(r.con_lai) || 0;
                   const pct = soLuong > 0 ? Math.min(100, (daLua / soLuong) * 100) : 0;
+                  const xong = soLuong > 0 && conLai <= 0;
+                  // gần xong (>=90%) -> cam đậm; xong -> xanh lá; còn lại -> xanh dương
+                  const barColor = xong ? 'var(--success)' : pct >= 90 ? 'var(--warning)' : SEQUENTIAL_BLUE;
                   return (
                     <tr key={r.lo_id} {...getRowProps(r.lo_id)}>
                       <td>{r.ma_vat_tu}</td>
@@ -117,26 +131,39 @@ export default function DashboardLoPage() {
                       <td>{r.so_lo}</td>
                       {/* <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
                       <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
-                      <td style={{ minWidth: 220 }}>
+                      {!hideTienDo && (
+                      <td style={{ minWidth: 240 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#e1e0d9', overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: SEQUENTIAL_BLUE, borderRadius: 4 }} />
+                            <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width .2s' }} />
                           </div>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                            {formatSoLuong(daLua)}/{formatSoLuong(soLuong)} ({pct.toFixed(0)}%)
+                          <span style={{ fontSize: 12, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}>
+                            {pct.toFixed(0)}%
                           </span>
                         </div>
-                        {(Number(r.da_lua_gan_ron) > 0 || Number(r.da_lua_cat_ty) > 0) && (
+                        <div style={{ fontSize: 12, marginTop: 3, whiteSpace: 'nowrap' }}>
+                          <strong style={{ color: 'var(--success)' }}>{formatSoLuong(daLua)}</strong>
+                          <span style={{ color: 'var(--text-muted)' }}> / {soLuong > 0 ? formatSoLuong(soLuong) : '—'}</span>
+                          {soLuong > 0 && (
+                            <>
+                              <span style={{ color: 'var(--text-muted)' }}> · </span>
+                              {xong ? (
+                                <span style={{ color: 'var(--success)', fontWeight: 600 }}>đã đủ</span>
+                              ) : (
+                                <span style={{ color: 'var(--warning)', fontWeight: 600 }}>còn {formatSoLuong(conLai)}</span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {(r.da_lua_dac_biet || []).length > 0 && (
                           <div className="field-hint" style={{ fontSize: 11, marginTop: 2 }}>
-                            {Number(r.da_lua_gan_ron) > 0 && (
-                              <span>Gắn ron: {formatSoLuong(r.da_lua_gan_ron)}&nbsp;&nbsp;</span>
-                            )}
-                            {Number(r.da_lua_cat_ty) > 0 && (
-                              <span>Cắt ty: {formatSoLuong(r.da_lua_cat_ty)}</span>
-                            )}
+                            {(r.da_lua_dac_biet || []).map((x) => (
+                              <span key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}&nbsp;&nbsp;</span>
+                            ))}
                           </div>
                         )}
                       </td>
+                      )}
                       <td>{formatSoLuong(r.so_bao_cao)}</td>
                       <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
                     </tr>
@@ -144,7 +171,7 @@ export default function DashboardLoPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="empty-state">
+                    <td colSpan={hideTienDo ? 6 : 7} className="empty-state">
                       Không có dữ liệu
                     </td>
                   </tr>

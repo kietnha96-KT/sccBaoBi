@@ -36,18 +36,18 @@ export default function LoaiLoiPage() {
   }
 
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '' });
+  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
   function openCreate() {
-    setForm({ ma_vat_tu: maVatTuFilter || '', ten_loi: '' });
+    setForm({ ma_vat_tu: maVatTuFilter || '', ten_loi: '', la_loi_dac_biet: false });
     setFormError('');
     setModal('create');
   }
 
   function openEdit(row) {
-    setForm({ ma_vat_tu: row.ma_vat_tu, ten_loi: row.ten_loi });
+    setForm({ ma_vat_tu: row.ma_vat_tu, ten_loi: row.ten_loi, la_loi_dac_biet: !!row.la_loi_dac_biet });
     setFormError('');
     setModal({ edit: row });
   }
@@ -60,7 +60,10 @@ export default function LoaiLoiPage() {
       if (modal === 'create') {
         await createLoaiLoi(form);
       } else {
-        await updateLoaiLoi(modal.edit.id, { ten_loi: form.ten_loi });
+        await updateLoaiLoi(modal.edit.id, {
+          ten_loi: form.ten_loi,
+          la_loi_dac_biet: form.la_loi_dac_biet,
+        });
       }
       setModal(null);
       setSelectedRowId(null);
@@ -137,6 +140,7 @@ export default function LoaiLoiPage() {
                   <th>Mã vật tư</th>
                   <th>Tên vật tư</th>
                   <th>Tên lỗi</th>
+                  <th>Lỗi đặc biệt</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,11 +149,18 @@ export default function LoaiLoiPage() {
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>
+                    <td>
+                      {row.la_loi_dac_biet ? (
+                        <span className="badge badge-warning">Đặc biệt</span>
+                      ) : (
+                        <span className="field-hint">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="empty-state">
+                    <td colSpan={4} className="empty-state">
                       Chưa có loại lỗi nào
                     </td>
                   </tr>
@@ -176,6 +187,17 @@ export default function LoaiLoiPage() {
               <div className="field">
                 <label>Tên lỗi</label>
                 <input value={form.ten_loi} onChange={(e) => setForm({ ...form, ten_loi: e.target.value })} required />
+              </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.la_loi_dac_biet}
+                    onChange={(e) => setForm({ ...form, la_loi_dac_biet: e.target.checked })}
+                    style={{ width: 'auto' }}
+                  />
+                  Lỗi đặc biệt
+                </label>
               </div>
             </div>
             <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>

@@ -59,8 +59,9 @@ router.get(
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 15 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
         { header: 'Tên lỗi', key: 'ten_loi', width: 35 },
+        { header: 'Lỗi đặc biệt', key: '_dac_biet_txt', width: 12 },
       ],
-      rows: result.rows,
+      rows: result.rows.map((r) => ({ ...r, _dac_biet_txt: r.la_loi_dac_biet ? 'Có' : '' })),
     });
   })
 );
@@ -108,7 +109,7 @@ router.post(
   '/',
   requireStaff,
   asyncHandler(async (req, res) => {
-    const { ma_vat_tu, ten_loi } = req.body;
+    const { ma_vat_tu, ten_loi, la_loi_dac_biet = false } = req.body;
     if (!ma_vat_tu || !ten_loi) {
       throw new AppError(400, 'Thiếu ma_vat_tu hoặc ten_loi');
     }
@@ -118,8 +119,8 @@ router.post(
     if (!vt.rows[0]) throw new AppError(400, 'Mã vật tư không tồn tại');
 
     const result = await pool.query(
-      'INSERT INTO LoaiLoi (ma_vat_tu, ten_loi) VALUES ($1, $2) RETURNING *',
-      [ma_vat_tu, ten_loi]
+      'INSERT INTO LoaiLoi (ma_vat_tu, ten_loi, la_loi_dac_biet) VALUES ($1, $2, $3) RETURNING *',
+      [ma_vat_tu, ten_loi, !!la_loi_dac_biet]
     );
     res.status(201).json(result.rows[0]);
   })
@@ -130,12 +131,15 @@ router.put(
   '/:id',
   requireStaff,
   asyncHandler(async (req, res) => {
-    const { ten_loi } = req.body;
+    const { ten_loi, la_loi_dac_biet } = req.body;
     if (!ten_loi) throw new AppError(400, 'Thiếu ten_loi');
 
     const result = await pool.query(
-      'UPDATE LoaiLoi SET ten_loi = $1 WHERE id = $2 RETURNING *',
-      [ten_loi, req.params.id]
+      `UPDATE LoaiLoi
+       SET ten_loi = $1,
+           la_loi_dac_biet = COALESCE($2, la_loi_dac_biet)
+       WHERE id = $3 RETURNING *`,
+      [ten_loi, la_loi_dac_biet ?? null, req.params.id]
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy loại lỗi');
     res.json(result.rows[0]);

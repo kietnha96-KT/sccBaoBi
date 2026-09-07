@@ -6,6 +6,7 @@ const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 const { BC_CALC_CTE } = require('../utils/productivity');
+const { SUM_DA_LUA_CHUAN } = require('../utils/loiDacBiet');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -243,7 +244,9 @@ async function resolveNhanVienIds(rawIds) {
   return nhanVienIds;
 }
 
-// Kiểm tra tổng tong_lua theo lo_id không vượt so_luong_lo (loại trừ báo cáo lựa lại và loại trừ chính báo cáo đang sửa)
+// Kiểm tra tổng tong_lua theo lo_id không vượt so_luong_lo.
+// Loại trừ: báo cáo lựa lại, chính báo cáo đang sửa, VÀ báo cáo dính loại lỗi đặc biệt
+// (phần đó coi như chưa lựa xong -> vẫn nằm trong "còn lại", khớp với con số ở danh mục lô).
 async function checkCapacity(client, { lo_id, dat, hu_bo, la_lua_lai, excludeBaoCaoId }) {
   if (la_lua_lai) return; // báo cáo lựa lại không tính vào giới hạn so_luong_lo
 
@@ -257,10 +260,13 @@ async function checkCapacity(client, { lo_id, dat, hu_bo, la_lua_lai, excludeBao
   let excludeClause = '';
   if (excludeBaoCaoId) {
     sumParams.push(excludeBaoCaoId);
-    excludeClause = `AND id != $${sumParams.length}`;
+    excludeClause = `AND bc.id != $${sumParams.length}`;
   }
   const sumResult = await client.query(
-    `SELECT COALESCE(SUM(tong_lua), 0) AS da_lua FROM BaoCao WHERE lo_id = $1 AND la_lua_lai = FALSE ${excludeClause}`,
+    `SELECT COALESCE(${SUM_DA_LUA_CHUAN}, 0) AS da_lua
+     FROM BaoCao bc
+     LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
+     WHERE bc.lo_id = $1 AND bc.la_lua_lai = FALSE ${excludeClause}`,
     sumParams
   );
   const daLua = Number(sumResult.rows[0].da_lua);
