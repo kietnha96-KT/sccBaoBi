@@ -188,10 +188,6 @@ export default function DashboardVatTuPage() {
                 <th>Tên vật tư</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                <th>Tổng đạt</th>
-                <th>Tổng hư bỏ</th>
-                <th>Tổng lựa</th>
-                <th>Tỷ lệ hư bỏ (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -201,15 +197,11 @@ export default function DashboardVatTuPage() {
                   <td><TruncatedText text={r.ten_vat_tu} /></td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  <td>{formatSoLuong(r.tong_dat)}</td>
-                  <td>{formatSoLuong(r.tong_hu_bo)}</td>
-                  <td>{formatSoLuong(r.tong_lua)}</td>
-                  <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td>
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={4} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>
@@ -247,10 +239,6 @@ export default function DashboardVatTuPage() {
                 <th>Loại lỗi</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                <th>Tổng đạt</th>
-                <th>Tổng hư bỏ</th>
-                <th>Tổng lựa</th>
-                <th>Tỷ lệ hư bỏ (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -269,15 +257,11 @@ export default function DashboardVatTuPage() {
                   </td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  <td>{formatSoLuong(r.tong_dat)}</td>
-                  <td>{formatSoLuong(r.tong_hu_bo)}</td>
-                  <td>{formatSoLuong(r.tong_lua)}</td>
-                  <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td>
                 </tr>
               ))}
               {(!loiRows || loiRows.length === 0) && (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={7} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>

@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { BC_CALC_CTE } = require('../utils/productivity');
 const { paginateArray } = require('../utils/pagination');
@@ -64,11 +64,7 @@ function buildTheoNhanSuQuery(query) {
     SELECT
       ns.id AS nhansu_id, ns.ho_ten,
       COUNT(*) AS so_bao_cao,
-      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb,
-      SUM(bcns.dat) AS tong_dat,
-      SUM(bcns.hu_bo) AS tong_hu_bo,
-      SUM(bcns.tong_lua) AS tong_lua,
-      ROUND((SUM(bcns.hu_bo) / NULLIF(SUM(bcns.tong_lua), 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct
+      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN BaoCao_NhanSu bn ON bn.baocao_id = bcns.id
@@ -120,11 +116,7 @@ function buildNhanSuVatTuBreakdownQuery(query) {
       COALESCE(ll.id, 0) AS loi_chuan_id,
       COALESCE(ll.ten_loi, 'Chưa gán nhãn') AS ten_loi,
       COUNT(*) AS so_bao_cao,
-      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb,
-      SUM(bcns.dat) AS tong_dat,
-      SUM(bcns.hu_bo) AS tong_hu_bo,
-      SUM(bcns.tong_lua) AS tong_lua,
-      ROUND((SUM(bcns.hu_bo) / NULLIF(SUM(bcns.tong_lua), 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct
+      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
@@ -167,10 +159,6 @@ router.get(
         { header: 'Họ tên', key: 'ho_ten', width: 28 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
-        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
-        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
-        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
-        { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
       ],
       rows: result.rows,
     });
@@ -203,10 +191,6 @@ router.get(
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
-        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
-        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
-        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
-        { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
       ],
       rows: result.rows,
     });
@@ -241,11 +225,7 @@ function buildTheoVatTuQuery(query) {
     SELECT
       v.ma_vat_tu, v.ten_vat_tu,
       COUNT(*) AS so_bao_cao,
-      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb,
-      SUM(bcns.dat) AS tong_dat,
-      SUM(bcns.hu_bo) AS tong_hu_bo,
-      SUM(bcns.tong_lua) AS tong_lua,
-      ROUND((SUM(bcns.hu_bo) / NULLIF(SUM(bcns.tong_lua), 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct
+      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
@@ -278,10 +258,6 @@ router.get(
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
-        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
-        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
-        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
-        { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
       ],
       rows: result.rows,
     });
@@ -319,11 +295,7 @@ function buildLoiTheoVatTuQuery(query) {
       COALESCE(ll.id, 0) AS loi_chuan_id,
       COALESCE(ll.ten_loi, 'Chưa gán nhãn') AS ten_loi,
       COUNT(*) AS so_bao_cao,
-      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb,
-      SUM(bcns.dat) AS tong_dat,
-      SUM(bcns.hu_bo) AS tong_hu_bo,
-      SUM(bcns.tong_lua) AS tong_lua,
-      ROUND((SUM(bcns.hu_bo) / NULLIF(SUM(bcns.tong_lua), 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct
+      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb
     FROM bc_nang_suat bcns
     JOIN Lo l ON l.id = bcns.lo_id
     JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
@@ -361,10 +333,6 @@ router.get(
         { header: 'Số lô', key: 'so_lo', width: 10 },
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
-        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
-        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
-        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
-        { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
       ],
       rows: result.rows,
     });
@@ -459,73 +427,7 @@ router.get(
   })
 );
 
-// ================= 4. DASHBOARD THEO THỜI GIAN =================
-function buildTheoThoiGianQuery(query) {
-  const groupBy = query.group_by === 'thang' ? 'thang' : 'ngay';
-  const kyExpr = groupBy === 'thang' ? `date_trunc('month', bcns.ngay)` : `bcns.ngay`;
-
-  const params = [];
-  let where = 'WHERE 1=1';
-  where += ` ${laLuaLaiClause(query, params)}`;
-  where += dateRangeClause(query, params);
-  if (query.ma_vat_tu) {
-    params.push(query.ma_vat_tu);
-    where += ` AND l.ma_vat_tu = $${params.length}`;
-  }
-  if (query.ma_ncc) {
-    params.push(query.ma_ncc);
-    where += ` AND l.ma_ncc = $${params.length}`;
-  }
-
-  const sql = `
-    ${BC_CALC_CTE}
-    SELECT
-      ${kyExpr} AS ky,
-      COUNT(*) AS so_bao_cao,
-      SUM(bcns.dat) AS tong_dat,
-      SUM(bcns.hu_bo) AS tong_hu_bo,
-      SUM(bcns.tong_lua) AS tong_lua,
-      ROUND(AVG(bcns.nang_suat_8h)::numeric, 2) AS nang_suat_tb
-    FROM bc_nang_suat bcns
-    JOIN Lo l ON l.id = bcns.lo_id
-    ${where}
-    GROUP BY ky
-    ORDER BY ky ASC
-  `;
-  return { sql, params };
-}
-
-router.get(
-  '/thoigian',
-  asyncHandler(async (req, res) => {
-    const { sql, params } = buildTheoThoiGianQuery(req.query);
-    const result = await pool.query(sql, params);
-    res.json(result.rows);
-  })
-);
-
-router.get(
-  '/thoigian/export',
-  asyncHandler(async (req, res) => {
-    const { sql, params } = buildTheoThoiGianQuery(req.query);
-    const result = await pool.query(sql, params);
-    await sendExcel(res, {
-      sheetName: 'NangSuatThoiGian',
-      fileName: 'dashboard_nang_suat_theo_thoi_gian',
-      columns: [
-        { header: 'Kỳ', key: 'ky', width: 16 },
-        { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
-        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
-        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
-        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
-        { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
-      ],
-      rows: result.rows,
-    });
-  })
-);
-
-// ================= 5. BÁO CÔNG (GIỜ LÀM) THEO LÔ =================
+// ================= 4. BÁO CÔNG (GIỜ LÀM) THEO LÔ =================
 // Khác các dashboard trên (chỉ đo năng suất). Ở đây gom TỔNG GIỜ LÀM của từng lô, tách
 // làm 2: giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI ĐẶC BIỆT
 // (LoaiLoi.la_loi_dac_biet). Báo cáo nhiều người thì giờ chia đều cho từng người rồi
@@ -667,6 +569,145 @@ router.get(
         { header: 'Lô: tổng giờ', key: 'lo_tong_gio', width: 14 },
       ],
       rows,
+    });
+  })
+);
+
+// ================= 6. SẢN LƯỢNG & HƯ BỎ (theo lô) =================
+// Chỉ số CHẤT LƯỢNG (đạt / hư bỏ / tổng lựa / tỷ lệ hư bỏ), tách khỏi dashboard năng suất.
+// 1 bảng phẳng: mỗi dòng = 1 lô. Bấm dòng -> popup liệt kê từng báo cáo của lô đó.
+// Phạm vi: TOÀN BỘ lịch sử của lô (KHÔNG lọc theo ngày, giống Báo công), CHỈ báo cáo lựa chính.
+// Tỷ lệ hư bỏ = SUM(hu_bo) / SUM(tong_lua) (có trọng số), không phải TB các tỷ lệ dòng.
+// Không cần BC_CALC_CTE: dat/hu_bo/tong_lua là cột thô của BaoCao.
+// LOẠI báo cáo dính loại lỗi đặc biệt (LoaiLoi.la_loi_dac_biet): đó là thao tác xử lý nội
+// bộ (cắt ty, gắn ron...), không phải khuyết tật -> không tính ở đây (khớp "đã lựa" của lô).
+
+const HU_BO_JOINS = `
+  FROM BaoCao bc
+  JOIN Lo l ON l.id = bc.lo_id
+  JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+  LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
+  LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
+`;
+
+// WHERE dùng chung cho bảng lô và bảng chi tiết (drill-down).
+function huBoWhere(query) {
+  const params = [];
+  let where = "WHERE 1=1 AND (ll.la_loi_dac_biet IS NOT TRUE) AND bc.la_lua_lai = FALSE";
+  if (query.ma_vat_tu) {
+    params.push(query.ma_vat_tu);
+    where += ` AND l.ma_vat_tu = $${params.length}`;
+  }
+  if (query.lo_id) {
+    params.push(query.lo_id);
+    where += ` AND l.id = $${params.length}`;
+  }
+  if (query.ma_ncc) {
+    params.push(query.ma_ncc);
+    where += ` AND l.ma_ncc = $${params.length}`;
+  }
+  if (query.loi_chuan_id) {
+    params.push(query.loi_chuan_id);
+    where += ` AND bc.loi_chuan_id = $${params.length}`;
+  }
+  return { where, params };
+}
+
+function buildHuBoQuery(query) {
+  const { where, params } = huBoWhere(query);
+  const sql = `
+    SELECT
+      l.id AS lo_id, l.so_lo, l.so_luong_lo, l.ma_vat_tu, v.ten_vat_tu, n.ten_ncc,
+      COUNT(*) AS so_bao_cao,
+      SUM(bc.dat) AS tong_dat,
+      SUM(bc.hu_bo) AS tong_hu_bo,
+      SUM(bc.tong_lua) AS tong_lua,
+      ROUND((SUM(bc.hu_bo) / NULLIF(SUM(bc.tong_lua), 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct
+    ${HU_BO_JOINS}
+    ${where}
+    GROUP BY l.id, l.so_lo, l.so_luong_lo, l.ma_vat_tu, v.ten_vat_tu, n.ten_ncc
+    ORDER BY ty_le_hu_bo_pct DESC NULLS LAST, l.so_lo ASC
+  `;
+  return { sql, params };
+}
+
+// Bảng chi tiết: từng báo cáo của 1 lô đã bấm.
+function buildHuBoChiTietQuery(query) {
+  const { where, params } = huBoWhere(query);
+  params.push(query.lo_id);
+  const sql = `
+    SELECT
+      bc.id, bc.ngay, l.so_lo, v.ma_vat_tu, v.ten_vat_tu, n.ten_ncc,
+      COALESCE(ll.ten_loi, bc.loi_nguoi_dung) AS ten_loi,
+      ll.ten_loi IS NOT NULL AS da_gan_nhan,
+      bc.dat, bc.hu_bo, bc.tong_lua, bc.la_lua_lai,
+      ROUND((bc.hu_bo / NULLIF(bc.tong_lua, 0) * 100)::numeric, 2) AS ty_le_hu_bo_pct,
+      (
+        SELECT string_agg(n2.ho_ten, ', ' ORDER BY n2.ho_ten)
+        FROM BaoCao_NhanSu bn2 JOIN NhanSu n2 ON n2.id = bn2.nhansu_id
+        WHERE bn2.baocao_id = bc.id
+      ) AS nhan_su_tham_gia
+    ${HU_BO_JOINS}
+    ${where} AND l.id = $${params.length}
+    ORDER BY bc.ngay DESC, bc.id DESC
+  `;
+  return { sql, params };
+}
+
+function huBoSummary(rows) {
+  const hu = rows.reduce((s, r) => s + Number(r.tong_hu_bo || 0), 0);
+  const lua = rows.reduce((s, r) => s + Number(r.tong_lua || 0), 0);
+  return {
+    so_lo: rows.length,
+    so_bao_cao: rows.reduce((s, r) => s + Number(r.so_bao_cao || 0), 0),
+    tong_dat: rows.reduce((s, r) => s + Number(r.tong_dat || 0), 0),
+    tong_hu_bo: hu,
+    tong_lua: lua,
+    ty_le_hu_bo_pct: lua > 0 ? Math.round((hu / lua) * 10000) / 100 : null,
+  };
+}
+
+router.get(
+  '/hu-bo',
+  asyncHandler(async (req, res) => {
+    const { sql, params } = buildHuBoQuery(req.query);
+    const result = await pool.query(sql, params);
+    res.json({
+      ...paginateArray(result.rows, req.query),
+      summary: huBoSummary(result.rows),
+    });
+  })
+);
+
+router.get(
+  '/hu-bo/chi-tiet',
+  asyncHandler(async (req, res) => {
+    const { sql, params } = buildHuBoChiTietQuery(req.query);
+    const result = await pool.query(sql, params);
+    res.json({ data: result.rows });
+  })
+);
+
+router.get(
+  '/hu-bo/export',
+  asyncHandler(async (req, res) => {
+    const { sql, params } = buildHuBoQuery(req.query);
+    const result = await pool.query(sql, params);
+    await sendExcel(res, {
+      sheetName: 'HuBo',
+      fileName: 'dashboard_hu_bo',
+      columns: [
+        { header: 'Mã vật tư', key: 'ma_vat_tu', width: 14 },
+        { header: 'Tên vật tư', key: 'ten_vat_tu', width: 34 },
+        { header: 'Số lô', key: 'so_lo', width: 16 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 26 },
+        { header: 'Số báo cáo', key: 'so_bao_cao', width: 12 },
+        { header: 'Tổng đạt', key: 'tong_dat', width: 14 },
+        { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
+        { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
+        { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
+      ],
+      rows: result.rows,
     });
   })
 );

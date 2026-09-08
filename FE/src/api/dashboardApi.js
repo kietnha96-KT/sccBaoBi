@@ -10,7 +10,9 @@ export const dashboardLoiTheoVatTu = (params) =>
   client.get('/dashboard/vattu/loi', { params }).then((r) => r.data);
 export const dashboardTheoLo = (params) =>
   client.get('/dashboard/lo', { params }).then((r) => r.data);
-export const dashboardTheoThoiGian = (params) =>
-  client.get('/dashboard/thoigian', { params }).then((r) => r.data);
 export const dashboardBaoCongTheoLo = (params) =>
   client.get('/dashboard/baocong-lo', { params }).then((r) => r.data);
+export const dashboardHuBo = (params) =>
+  client.get('/dashboard/hu-bo', { params }).then((r) => r.data);
+export const dashboardHuBoChiTiet = (params) =>
+  client.get('/dashboard/hu-bo/chi-tiet', { params }).then((r) => r.data);

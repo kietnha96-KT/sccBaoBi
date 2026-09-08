@@ -15,8 +15,8 @@ import NhaCungCapPage from './pages/NhaCungCapPage';
 import DashboardNhanSuPage from './pages/DashboardNhanSuPage';
 import DashboardVatTuPage from './pages/DashboardVatTuPage';
 import DashboardLoPage from './pages/DashboardLoPage';
-import DashboardThoiGianPage from './pages/DashboardThoiGianPage';
 import DashboardBaoCongLoPage from './pages/DashboardBaoCongLoPage';
+import DashboardHuBoPage from './pages/DashboardHuBoPage';
 
 function App() {
   return (
@@ -63,19 +63,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route path="/dashboard/bao-cong" element={<DashboardBaoCongLoPage />} />
+
             <Route
-              path="/dashboard/thoi-gian"
+              path="/dashboard/hu-bo"
               element={
                 <ProtectedRoute staffOnly>
-                  <DashboardThoiGianPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/bao-cong"
-              element={
-                <ProtectedRoute staffOnly>
-                  <DashboardBaoCongLoPage />
+                  <DashboardHuBoPage />
                 </ProtectedRoute>
               }
             />

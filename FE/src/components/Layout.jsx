@@ -32,41 +32,37 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav" onClick={closeMobile}>
+          <div className="sidebar-section">Nhập báo cáo</div>
+          <NavLink to="/baocao/moi" className={navLinkClass}>
+            Nhập mới
+          </NavLink>
+
           <div className="sidebar-section">Báo cáo</div>
           <NavLink to="/baocao" end className={navLinkClass}>
-            Danh sách báo cáo
-          </NavLink>
-          <NavLink to="/baocao/moi" className={navLinkClass}>
-            Nhập báo cáo mới
+            Báo cáo xử lý hàng
           </NavLink>
 
           {isStaff && (
             <>
-              <div className="sidebar-section">Dashboard năng suất</div>
+
               <NavLink to="/dashboard/nhan-su" className={navLinkClass}>
-                Theo nhân sự
+                Năng suất theo nhân sự
               </NavLink>
               <NavLink to="/dashboard/vat-tu" className={navLinkClass}>
-                Theo vật tư
+                Năng suất theo vật tư
               </NavLink>
               <NavLink to="/dashboard/lo" className={navLinkClass}>
-                Theo lô
+                Năng suất theo lô
               </NavLink>
-              <NavLink to="/dashboard/thoi-gian" className={navLinkClass}>
-                Theo thời gian
+              <NavLink to="/dashboard/hu-bo" className={navLinkClass}>
+                Thống kê hư bỏ
               </NavLink>
-
-              <div className="sidebar-section">Báo công</div>
               <NavLink to="/dashboard/bao-cong" className={navLinkClass}>
-                Giờ làm theo lô
+                Thống kê công xử lý
               </NavLink>
 
               <div className="sidebar-section">Quản trị danh mục</div>
-              {isAdmin && (
-                <NavLink to="/vat-tu" className={navLinkClass}>
-                  Vật tư
-                </NavLink>
-              )}
+      
               <NavLink to="/lo" className={navLinkClass}>
                 Lô
               </NavLink>
@@ -75,6 +71,9 @@ export default function Layout() {
               </NavLink>
               {isAdmin && (
                 <>
+                  <NavLink to="/vat-tu" className={navLinkClass}>
+                    Vật tư
+                  </NavLink>
                   <NavLink to="/nhan-su" className={navLinkClass}>
                     Nhân sự
                   </NavLink>

@@ -222,10 +222,6 @@ export default function DashboardNhanSuPage() {
                 <th>Nhân sự</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                {/* <th>Tổng đạt</th> */}
-                {/* <th>Tổng hư bỏ</th> */}
-                {/* <th>Tổng lựa</th> */}
-                {/* <th>Tỷ lệ hư bỏ (%)</th> */}
               </tr>
             </thead>
             <tbody>
@@ -234,15 +230,11 @@ export default function DashboardNhanSuPage() {
                   <td><TruncatedText text={r.ho_ten} maxWidth={180} /></td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  {/* <td>{formatSoLuong(r.tong_dat)}</td> */}
-                  {/* <td>{formatSoLuong(r.tong_hu_bo)}</td> */}
-                  {/* <td>{formatSoLuong(r.tong_lua)}</td> */}
-                  {/* <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td> */}
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={3} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>
@@ -275,10 +267,6 @@ export default function DashboardNhanSuPage() {
                 <th>Loại lỗi</th>
                 <th>Số báo cáo</th>
                 <th>Năng suất TB (8h)</th>
-                {/* <th>Tổng đạt</th> */}
-                {/* <th>Tổng hư bỏ</th> */}
-                {/* <th>Tổng lựa</th> */}
-                {/* <th>Tỷ lệ hư bỏ (%)</th> */}
               </tr>
             </thead>
             <tbody>
@@ -301,15 +289,11 @@ export default function DashboardNhanSuPage() {
                   </td>
                   <td>{formatSoLuong(r.so_bao_cao)}</td>
                   <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
-                  {/* <td>{formatSoLuong(r.tong_dat)}</td> */}
-                  {/* <td>{formatSoLuong(r.tong_hu_bo)}</td> */}
-                  {/* <td>{formatSoLuong(r.tong_lua)}</td> */}
-                  {/* <td>{formatSoThapPhan(r.ty_le_hu_bo_pct)}</td> */}
                 </tr>
               ))}
               {breakdownRows.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="empty-state">
+                  <td colSpan={8} className="empty-state">
                     Không có dữ liệu
                   </td>
                 </tr>

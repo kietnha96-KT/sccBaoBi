@@ -83,17 +83,29 @@ a {
   margin-top: 2px;
 }
 
+/* Đầu mục CẤP 1 (nhóm): có đường kẻ + khoảng cách phía trên, chữ hoa nhỏ, đậm nhẹ. */
 .sidebar-section {
-  padding: 8px 20px 4px;
+  margin-top: 16px;
+  padding: 12px 20px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
+  letter-spacing: 0.08em;
+  color: #7c8798;
 }
 
+.sidebar-section:first-child {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 4px;
+}
+
+/* Mục CẤP 2 (link): thụt vào sâu hơn tiêu đề nhóm để thấy rõ phân cấp.
+   Màu / hover / trạng thái active giữ NGUYÊN như cũ. */
 .sidebar-link {
   display: block;
-  padding: 10px 20px;
+  padding: 9px 20px 9px 32px;
   color: var(--sidebar-text);
   text-decoration: none;
   font-size: 14px;

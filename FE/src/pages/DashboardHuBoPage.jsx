@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { dashboardBaoCongTheoLo } from '../api/dashboardApi';
+import { dashboardHuBo } from '../api/dashboardApi';
+import { listLoaiLoi } from '../api/loailoiApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
@@ -14,52 +15,56 @@ import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
 import SelectionActionBar from '../components/SelectionActionBar';
-import BaoCongLoDetail from '../components/BaoCongLoDetail';
+import HuBoDetail from '../components/HuBoDetail';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 
-// Báo công (giờ làm) theo lô - KHÁC dashboard năng suất. Tổng giờ làm từng lô, tách 2:
-// giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI ĐẶC BIỆT.
-// Báo cáo làm chung -> giờ chia đều cho mỗi người rồi cộng dồn.
-// Phạm vi: toàn bộ lịch sử của lô (không lọc ngày), CHỈ báo cáo lựa chính.
-// Chi tiết giờ theo người xem ở popup (bấm dòng -> nút Xem trên thanh chọn).
-const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '' };
+// Sản lượng & hư bỏ theo lô - chỉ số CHẤT LƯỢNG (tách khỏi dashboard năng suất).
+// Mỗi dòng = 1 lô. Bấm dòng -> nút Xem -> popup liệt kê từng báo cáo của lô.
+// Phạm vi: toàn bộ lịch sử của lô (KHÔNG lọc ngày, giống Báo công), chỉ báo cáo lựa chính.
+// Tỷ lệ hư bỏ = SUM(hư) / SUM(lựa) (có trọng số). Đã loại báo cáo dính loại lỗi đặc biệt.
+const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', loi_chuan_id: '' };
 
-const gioText = (h) => (h == null ? '—' : `${formatSoThapPhan(h, 1)}h`);
+// màu theo mức tỷ lệ hư bỏ
+function pctColor(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return 'var(--text-muted)';
+  if (n >= 10) return 'var(--danger)';
+  if (n >= 5) return 'var(--warning)';
+  return 'var(--text-muted)';
+}
+const pctText = (v) => (v == null ? '—' : `${formatSoThapPhan(v)}%`);
 
-export default function DashboardBaoCongLoPage() {
+export default function DashboardHuBoPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
-  const [viewLo, setViewLo] = useState(null);
-  useCloseOnBackButton(!!viewLo, () => setViewLo(null));
+  const [viewRow, setViewRow] = useState(null);
+  useCloseOnBackButton(!!viewRow, () => setViewRow(null));
 
   const { data, loading, error } = useFetch(
-    () => dashboardBaoCongTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
+    () => dashboardHuBo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
+    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.loi_chuan_id, page]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
+  const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const nccList = nccData?.data || [];
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
     : loData?.data || [];
-
-  const rows = data?.data || [];
-  const selectedLo = rows.find((r) => r.lo_id === selectedRowId) || null;
-
-  // đổi bộ lọc / trang -> bỏ chọn
-  useEffect(() => {
-    setSelectedRowId(null);
-  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page, setSelectedRowId]);
+  const loaiLoiList = filters.ma_vat_tu
+    ? (loaiLoiData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
+    : loaiLoiData?.data || [];
 
   function cleanParams(f) {
     const p = {};
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
     if (f.lo_id) p.lo_id = f.lo_id;
     if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
+    if (f.loi_chuan_id) p.loi_chuan_id = f.loi_chuan_id;
     return p;
   }
 
@@ -72,14 +77,28 @@ export default function DashboardBaoCongLoPage() {
     const loConHopLe = !v || !filters.lo_id || (loData?.data || []).some(
       (l) => String(l.id) === String(filters.lo_id) && l.ma_vat_tu === v
     );
-    handleFilterChange({ ...filters, ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
+    const loiConHopLe = !v || !filters.loi_chuan_id || (loaiLoiData?.data || []).some(
+      (l) => String(l.id) === String(filters.loi_chuan_id) && l.ma_vat_tu === v
+    );
+    handleFilterChange({
+      ...filters,
+      ma_vat_tu: v,
+      lo_id: loConHopLe ? filters.lo_id : '',
+      loi_chuan_id: loiConHopLe ? filters.loi_chuan_id : '',
+    });
   }
 
+  const rows = data?.data || [];
+  const selectedRow = rows.find((r) => r.lo_id === selectedRowId) || null;
+
+  // đổi bộ lọc / trang -> bỏ chọn
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.loi_chuan_id, page, setSelectedRowId]);
+
   return (
-    <div className={selectedLo ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title">
-        Báo công (giờ làm) theo lô
-      </h1>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
+      <h1 className="page-title">Sản lượng &amp; hư bỏ theo lô</h1>
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
@@ -106,40 +125,61 @@ export default function DashboardBaoCongLoPage() {
             placeholder="Gõ để tìm..."
           />
         </div>
+        <div className="field">
+          <label>Loại lỗi (đã gán)</label>
+          <select
+            value={filters.loi_chuan_id}
+            onChange={(e) => handleFilterChange({ ...filters, loi_chuan_id: e.target.value })}
+          >
+            <option value="">Tất cả</option>
+            {loaiLoiList.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.ma_vat_tu} - {l.ten_loi}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="card">
         <div className="card-header">
           <h2>
-            Giờ làm theo lô
+            Tỷ lệ hư bỏ theo lô
             <span className="field-hint h2-note">
               (chỉ báo cáo lựa chính)
             </span>
           </h2>
           <button
             className="btn btn-sm"
-            onClick={() => downloadExcel('/dashboard/baocong-lo/export', cleanParams(filters), 'bao_cong_theo_lo.xlsx')}
+            onClick={() => downloadExcel('/dashboard/hu-bo/export', cleanParams(filters), 'dashboard_hu_bo.xlsx')}
           >
             Xuất Excel
           </button>
         </div>
 
         <SelectionActionBar
-          selected={selectedLo}
+          selected={selectedRow}
           onClear={() => setSelectedRowId(null)}
-          idleHint="Bấm vào một dòng để xem chi tiết giờ theo người"
-          label={selectedLo && (<><strong>{selectedLo.ma_vat_tu}</strong> · lô {selectedLo.ten_vat_tu}</>)}
-          extra={
-            selectedLo && (
+          idleHint="Bấm vào một dòng để xem chi tiết từng báo cáo"
+          label={
+            selectedRow && (
               <>
-                Tổng <strong>{gioText(selectedLo.tong_gio_lam)}</strong>
-                {' · '}thường {gioText(selectedLo.gio_thuong)}
-                {' · '}<span className="text-warning">đặc biệt {gioText(selectedLo.gio_dac_biet)}</span>
+                <strong>{selectedRow.ma_vat_tu}</strong> · {selectedRow.ten_vat_tu}
+              </>
+            )
+          }
+          extra={
+            selectedRow && (
+              <>
+                Tổng lô <strong>{formatSoLuong(selectedRow.so_luong_lo)}</strong> / hư <strong>{formatSoLuong(selectedRow.tong_hu_bo)}</strong> ·{' '}
+                <strong style={{ color: pctColor(selectedRow.ty_le_hu_bo_pct) }}>
+                  {pctText(selectedRow.ty_le_hu_bo_pct)}
+                </strong>
               </>
             )
           }
         >
-          <button className="btn btn-sm btn-primary" onClick={() => setViewLo(selectedLo)}>
+          <button className="btn btn-sm btn-primary" onClick={() => setViewRow(selectedRow)}>
             Xem
           </button>
         </SelectionActionBar>
@@ -155,11 +195,9 @@ export default function DashboardBaoCongLoPage() {
                   {/* <th>Tên vật tư</th> */}
                   <th>Số lô</th>
                   {/* <th>Nhà cung cấp</th> */}
-                  <th>Số lượng lô</th>
-                  {/* <th>Số báo cáo</th> */}
-                  <th>Tổng giờ</th>
-                  <th>Giờ lỗi thường</th>
-                  <th>Giờ lỗi đặc biệt</th>
+                  <th>Tổng lô</th>
+                  <th>Tổng hư bỏ</th>
+                  <th>Tỷ lệ hư bỏ</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,21 +208,15 @@ export default function DashboardBaoCongLoPage() {
                     <td>{r.so_lo}</td>
                     {/* <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td> */}
                     <td>{formatSoLuong(r.so_luong_lo)}</td>
-                    {/* <td>{formatSoLuong(r.so_bao_cao)}</td> */}
-                    <td><strong>{gioText(r.tong_gio_lam)}</strong></td>
-                    <td>{Number(r.gio_thuong) > 0
-                      ? <span className="text-blue fw-600">{gioText(r.gio_thuong)}</span>
-                      : <span className="field-hint">—</span>}</td>
+                    <td>{formatSoLuong(r.tong_hu_bo)}</td>
                     <td>
-                      {Number(r.gio_dac_biet) > 0
-                        ? <span className="text-warning fw-600">{gioText(r.gio_dac_biet)}</span>
-                        : <span className="field-hint">—</span>}
+                      <strong style={{ color: pctColor(r.ty_le_hu_bo_pct) }}>{pctText(r.ty_le_hu_bo_pct)}</strong>
                     </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="empty-state">
+                    <td colSpan={7} className="empty-state">
                       Không có dữ liệu
                     </td>
                   </tr>
@@ -196,15 +228,15 @@ export default function DashboardBaoCongLoPage() {
         <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
-      {viewLo && (
+      {viewRow && (
         <Modal
-          title={`Chi tiết công: ${viewLo.ma_vat_tu} (${viewLo.so_lo})`}
-          onClose={() => setViewLo(null)}
+          title={`Chi tiết hư bỏ · lô ${viewRow.so_lo} (${viewRow.ma_vat_tu})`}
+          onClose={() => setViewRow(null)}
           size="lg"
         >
-          <BaoCongLoDetail lo={viewLo} />
+          <HuBoDetail row={viewRow} params={cleanParams(filters)} />
           <div className="btn-group mt-16">
-            <button type="button" className="btn" onClick={() => setViewLo(null)}>
+            <button type="button" className="btn" onClick={() => setViewRow(null)}>
               Đóng
             </button>
           </div>
