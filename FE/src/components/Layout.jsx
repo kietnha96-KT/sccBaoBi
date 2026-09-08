@@ -56,6 +56,11 @@ export default function Layout() {
                 Theo thời gian
               </NavLink>
 
+              <div className="sidebar-section">Báo công</div>
+              <NavLink to="/dashboard/bao-cong" className={navLinkClass}>
+                Giờ làm theo lô
+              </NavLink>
+
               <div className="sidebar-section">Quản trị danh mục</div>
               {isAdmin && (
                 <NavLink to="/vat-tu" className={navLinkClass}>

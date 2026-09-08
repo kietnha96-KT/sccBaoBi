@@ -16,6 +16,7 @@ import DashboardNhanSuPage from './pages/DashboardNhanSuPage';
 import DashboardVatTuPage from './pages/DashboardVatTuPage';
 import DashboardLoPage from './pages/DashboardLoPage';
 import DashboardThoiGianPage from './pages/DashboardThoiGianPage';
+import DashboardBaoCongLoPage from './pages/DashboardBaoCongLoPage';
 
 function App() {
   return (
@@ -67,6 +68,14 @@ function App() {
               element={
                 <ProtectedRoute staffOnly>
                   <DashboardThoiGianPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/bao-cong"
+              element={
+                <ProtectedRoute staffOnly>
+                  <DashboardBaoCongLoPage />
                 </ProtectedRoute>
               }
             />

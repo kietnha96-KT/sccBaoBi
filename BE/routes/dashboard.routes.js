@@ -525,4 +525,150 @@ router.get(
   })
 );
 
+// ================= 5. BÁO CÔNG (GIỜ LÀM) THEO LÔ =================
+// Khác các dashboard trên (chỉ đo năng suất). Ở đây gom TỔNG GIỜ LÀM của từng lô, tách
+// làm 2: giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI ĐẶC BIỆT
+// (LoaiLoi.la_loi_dac_biet). Báo cáo nhiều người thì giờ chia đều cho từng người rồi
+// cộng dồn -> tổng các phần chia đều = tổng giờ của lô.
+// Phạm vi: TOÀN BỘ lịch sử của lô (không lọc ngày). CHỈ tính báo cáo LỰA CHÍNH
+// (la_lua_lai = FALSE), có đủ giờ + có nhân sự.
+function buildBaoCongTheoLoQuery(query) {
+  const outerParams = [];
+  let outerWhere = 'WHERE bc_agg.lo_id IS NOT NULL';
+  if (query.ma_vat_tu) {
+    outerParams.push(query.ma_vat_tu);
+    outerWhere += ` AND l.ma_vat_tu = $${outerParams.length}`;
+  }
+  if (query.lo_id) {
+    outerParams.push(query.lo_id);
+    outerWhere += ` AND l.id = $${outerParams.length}`;
+  }
+  if (query.ma_ncc) {
+    outerParams.push(query.ma_ncc);
+    outerWhere += ` AND l.ma_ncc = $${outerParams.length}`;
+  }
+
+  // gio_lam mỗi người của 1 báo cáo = gio_lam / so_nhansu
+  const gioNguoi = 'bcns.gio_lam / NULLIF(bcns.so_nhansu, 0)';
+  const laDacBiet = 'll.la_loi_dac_biet IS TRUE';
+
+  const sql = `
+    ${BC_CALC_CTE}
+    , per_person AS (
+      SELECT bcns.lo_id, ns.id AS nhansu_id, ns.ho_ten,
+        COUNT(*) AS so_bao_cao,
+        SUM(${gioNguoi}) AS gio,
+        SUM(${gioNguoi}) FILTER (WHERE ${laDacBiet}) AS gio_dac_biet,
+        SUM(${gioNguoi}) FILTER (WHERE NOT (${laDacBiet})) AS gio_thuong
+      FROM bc_nang_suat bcns
+      JOIN BaoCao_NhanSu bn ON bn.baocao_id = bcns.id
+      JOIN NhanSu ns ON ns.id = bn.nhansu_id
+      LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
+      WHERE bcns.gio_lam IS NOT NULL AND bcns.la_lua_lai = FALSE
+      GROUP BY bcns.lo_id, ns.id, ns.ho_ten
+    )
+    SELECT
+      l.id AS lo_id, l.so_lo, l.so_luong_lo, l.ma_vat_tu, v.ten_vat_tu, n.ten_ncc,
+      bc_agg.so_bao_cao,
+      ROUND(bc_agg.tong_gio_lam::numeric, 2) AS tong_gio_lam,
+      ROUND(COALESCE(bc_agg.gio_thuong, 0)::numeric, 2) AS gio_thuong,
+      ROUND(COALESCE(bc_agg.gio_dac_biet, 0)::numeric, 2) AS gio_dac_biet,
+      COALESCE(pp.so_nguoi, 0) AS so_nguoi,
+      COALESCE(pp.chi_tiet, '[]') AS chi_tiet_nguoi
+    FROM Lo l
+    JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
+    LEFT JOIN NhaCungCap n ON n.ma_ncc = l.ma_ncc
+    LEFT JOIN (
+      SELECT bcns.lo_id, COUNT(*) AS so_bao_cao,
+        SUM(bcns.gio_lam) AS tong_gio_lam,
+        SUM(bcns.gio_lam) FILTER (WHERE ${laDacBiet}) AS gio_dac_biet,
+        SUM(bcns.gio_lam) FILTER (WHERE NOT (${laDacBiet})) AS gio_thuong
+      FROM bc_nang_suat bcns
+      LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
+      WHERE bcns.gio_lam IS NOT NULL AND bcns.so_nhansu > 0 AND bcns.la_lua_lai = FALSE
+      GROUP BY bcns.lo_id
+    ) bc_agg ON bc_agg.lo_id = l.id
+    LEFT JOIN (
+      SELECT lo_id, COUNT(*) AS so_nguoi,
+        json_agg(
+          json_build_object(
+            'nhansu_id', nhansu_id, 'ho_ten', ho_ten, 'so_bao_cao', so_bao_cao,
+            'gio', ROUND(gio::numeric, 2),
+            'gio_thuong', ROUND(COALESCE(gio_thuong, 0)::numeric, 2),
+            'gio_dac_biet', ROUND(COALESCE(gio_dac_biet, 0)::numeric, 2)
+          )
+          ORDER BY gio DESC
+        ) AS chi_tiet
+      FROM per_person
+      GROUP BY lo_id
+    ) pp ON pp.lo_id = l.id
+    ${outerWhere}
+    ORDER BY bc_agg.tong_gio_lam DESC NULLS LAST, l.id DESC
+  `;
+  return { sql, params: outerParams };
+}
+
+router.get(
+  '/baocong-lo',
+  asyncHandler(async (req, res) => {
+    const { sql, params } = buildBaoCongTheoLoQuery(req.query);
+    const result = await pool.query(sql, params);
+    // summary tính trên TOÀN BỘ kết quả đã lọc (không chỉ trang hiện tại)
+    const summary = {
+      so_lo: result.rows.length,
+      tong_gio_lam: result.rows.reduce((s, r) => s + Number(r.tong_gio_lam || 0), 0),
+      gio_thuong: result.rows.reduce((s, r) => s + Number(r.gio_thuong || 0), 0),
+      gio_dac_biet: result.rows.reduce((s, r) => s + Number(r.gio_dac_biet || 0), 0),
+      tong_bao_cao: result.rows.reduce((s, r) => s + Number(r.so_bao_cao || 0), 0),
+    };
+    res.json({ ...paginateArray(result.rows, req.query), summary });
+  })
+);
+
+router.get(
+  '/baocong-lo/export',
+  asyncHandler(async (req, res) => {
+    const { sql, params } = buildBaoCongTheoLoQuery(req.query);
+    const result = await pool.query(sql, params);
+    // Xuất phẳng: mỗi dòng = 1 (lô × người), tách giờ lỗi thường / lỗi đặc biệt.
+    const rows = [];
+    for (const lo of result.rows) {
+      const ct = lo.chi_tiet_nguoi || [];
+      const base = {
+        ma_vat_tu: lo.ma_vat_tu, ten_vat_tu: lo.ten_vat_tu, so_lo: lo.so_lo, ten_ncc: lo.ten_ncc,
+        lo_gio_thuong: lo.gio_thuong, lo_gio_dac_biet: lo.gio_dac_biet, lo_tong_gio: lo.tong_gio_lam,
+      };
+      if (ct.length === 0) {
+        rows.push({ ...base, ho_ten: '', so_bao_cao: lo.so_bao_cao, gio_thuong: null, gio_dac_biet: null, gio: null });
+      } else {
+        for (const p of ct) {
+          rows.push({
+            ...base, ho_ten: p.ho_ten, so_bao_cao: p.so_bao_cao,
+            gio_thuong: p.gio_thuong, gio_dac_biet: p.gio_dac_biet, gio: p.gio,
+          });
+        }
+      }
+    }
+    await sendExcel(res, {
+      sheetName: 'BaoCongTheoLo',
+      fileName: 'bao_cong_theo_lo',
+      columns: [
+        { header: 'Mã vật tư', key: 'ma_vat_tu', width: 14 },
+        { header: 'Tên vật tư', key: 'ten_vat_tu', width: 28 },
+        { header: 'Số lô', key: 'so_lo', width: 18 },
+        { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
+        { header: 'Họ tên', key: 'ho_ten', width: 20 },
+        { header: 'Số báo cáo', key: 'so_bao_cao', width: 12 },
+        { header: 'Giờ lỗi thường (người)', key: 'gio_thuong', width: 20 },
+        { header: 'Giờ lỗi đặc biệt (người)', key: 'gio_dac_biet', width: 20 },
+        { header: 'Giờ tổng (người)', key: 'gio', width: 16 },
+        { header: 'Lô: giờ lỗi thường', key: 'lo_gio_thuong', width: 18 },
+        { header: 'Lô: giờ lỗi đặc biệt', key: 'lo_gio_dac_biet', width: 18 },
+        { header: 'Lô: tổng giờ', key: 'lo_tong_gio', width: 14 },
+      ],
+      rows,
+    });
+  })
+);
+
 module.exports = router;

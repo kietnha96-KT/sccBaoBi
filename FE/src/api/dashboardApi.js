@@ -12,3 +12,5 @@ export const dashboardTheoLo = (params) =>
   client.get('/dashboard/lo', { params }).then((r) => r.data);
 export const dashboardTheoThoiGian = (params) =>
   client.get('/dashboard/thoigian', { params }).then((r) => r.data);
+export const dashboardBaoCongTheoLo = (params) =>
+  client.get('/dashboard/baocong-lo', { params }).then((r) => r.data);
