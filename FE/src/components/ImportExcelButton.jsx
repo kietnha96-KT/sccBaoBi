@@ -54,7 +54,7 @@ export default function ImportExcelButton({ endpoint, columnsHint, onImported })
         ref={inputRef}
         type="file"
         accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        style={{ display: 'none' }}
+        hidden
         onChange={handleFile}
       />
 
@@ -65,28 +65,24 @@ export default function ImportExcelButton({ endpoint, columnsHint, onImported })
           {!error && (
             <>
               {columnsHint && (
-                <p className="field-hint" style={{ margin: '0 0 8px' }}>
+                <p className="field-hint m-0 mb-8">
                   Cột đọc từ file: {columnsHint}
                 </p>
               )}
-              <p style={{ margin: '0 0 12px' }}>
+              <p className="m-0 mb-12">
                 Đọc <strong>{result.tong_dong ?? 0}</strong> dòng · Đã thêm mới{' '}
-                <strong style={{ color: 'var(--success)' }}>{result.them_moi ?? 0}</strong> dòng.
+                <strong className="text-success">{result.them_moi ?? 0}</strong> dòng.
               </p>
 
               {(result.nhom_bo_qua || []).map((g, i) => (
-                <div key={i} style={{ marginBottom: 12 }}>
+                <div key={i} className="mb-12">
                   <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 13,
-                      color: g.muc === 'loi' ? 'var(--danger)' : 'var(--warning)',
-                      marginBottom: 4,
-                    }}
+                    className="import-group-title"
+                    style={{ color: g.muc === 'loi' ? 'var(--danger)' : 'var(--warning)' }}
                   >
                     {g.tieu_de} ({g.danh_sach.length})
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}>
+                  <ul className="import-error-list">
                     {g.danh_sach.slice(0, 100).map((r, k) => (
                       <li key={k}>
                         Dòng {r.dong}: {r.chi_tiet}
@@ -98,14 +94,14 @@ export default function ImportExcelButton({ endpoint, columnsHint, onImported })
               ))}
 
               {(result.nhom_bo_qua || []).length === 0 && (
-                <p className="field-hint" style={{ margin: 0 }}>
+                <p className="field-hint m-0">
                   Không có dòng nào bị bỏ qua.
                 </p>
               )}
             </>
           )}
 
-          <button type="button" className="btn btn-primary" style={{ marginTop: 8 }} onClick={close}>
+          <button type="button" className="btn btn-primary mt-8" onClick={close}>
             Xong
           </button>
         </Modal>

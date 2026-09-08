@@ -71,7 +71,7 @@ export default function DashboardThoiGianPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Dashboard năng suất theo thời gian
       </h1>
       <Alert>{error}</Alert>
@@ -89,7 +89,7 @@ export default function DashboardThoiGianPage() {
                 <option value="thang">Tháng</option>
               </select>
             </div>
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Nhà cung cấp</label>
               <SearchableSelect
                 options={nccList}
@@ -137,7 +137,7 @@ export default function DashboardThoiGianPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Xu hướng năng suất trung bình (chuẩn hóa 8h)</h2>
         </div>
@@ -170,7 +170,7 @@ export default function DashboardThoiGianPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Bảng chi tiết</h2>
         </div>

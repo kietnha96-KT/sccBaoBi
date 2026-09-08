@@ -107,7 +107,7 @@ export default function DashboardNhanSuPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Dashboard năng suất theo nhân sự
       </h1>
       <Alert>{error}</Alert>
@@ -118,7 +118,7 @@ export default function DashboardNhanSuPage() {
         vatTuList={vatTuList}
         extra={
           <>
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Số lô</label>
               <SearchableSelect
                 options={loList}
@@ -129,7 +129,7 @@ export default function DashboardNhanSuPage() {
                 placeholder="Gõ số lô..."
               />
             </div>
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Nhân sự</label>
               <SearchableSelect
                 options={nhanSuList || []}
@@ -154,7 +154,7 @@ export default function DashboardNhanSuPage() {
                 ))}
               </select>
             </div>
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Nhà cung cấp</label>
               <SearchableSelect
                 options={nccList}
@@ -211,7 +211,7 @@ export default function DashboardNhanSuPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Bảng chi tiết</h2>
         </div>
@@ -253,7 +253,7 @@ export default function DashboardNhanSuPage() {
         <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Breakdown theo vật tư, lô, lỗi (mỗi nhân sự đã lựa gì, ở lô nào, lỗi gì)</h2>
           <button

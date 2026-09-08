@@ -10,7 +10,7 @@ export default function BaoCaoFormPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         {id ? 'Sửa báo cáo' : 'Nhập báo cáo lựa vật tư'}
       </h1>
       <div className="card">

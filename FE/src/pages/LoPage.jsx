@@ -102,7 +102,7 @@ export default function LoPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Danh mục lô
       </h1>
       <Alert>{error}</Alert>
@@ -186,7 +186,7 @@ export default function LoPage() {
                     <td>
                       <div>{formatSoLuong(row.da_lua)}</div>
                       {(row.da_lua_dac_biet || []).length > 0 && (
-                        <div className="field-hint" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                        <div className="field-hint hint-xs">
                           {(row.da_lua_dac_biet || []).map((x) => (
                             <div key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}</div>
                           ))}
@@ -218,7 +218,7 @@ export default function LoPage() {
         <Modal title={modal === 'create' ? 'Thêm lô' : 'Sửa lô'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-grid form-grid-1">
 
               <VatTuFilterFields
                 vatTuList={vatTuList}
@@ -263,7 +263,7 @@ export default function LoPage() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </form>

@@ -157,7 +157,7 @@ a {
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  margin: 0;
+  margin: 0 0 16px;
 }
 
 .page-content {
@@ -1098,4 +1098,150 @@ table.data-table {
   .card-header .btn-group {
     width: auto;
   }
+}
+
+/* ---------- Tiện ích: đẩy từ inline style của JSX cho HTML sạch ---------- */
+.mt-8 { margin-top: 8px; }
+.mt-10 { margin-top: 10px; }
+.mt-12 { margin-top: 12px; }
+.mt-14 { margin-top: 14px; }
+.mt-16 { margin-top: 16px; }
+.mt-18 { margin-top: 18px; }
+.mt-20 { margin-top: 20px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-14 { margin-bottom: 14px; }
+.mb-16 { margin-bottom: 16px; }
+
+.text-blue { color: #2a78d6; }
+.text-warning { color: var(--warning); }
+.text-success { color: var(--success); }
+.text-muted { color: var(--text-muted); }
+.fw-600 { font-weight: 600; }
+.nowrap { white-space: nowrap; }
+.pre-wrap { white-space: pre-wrap; }
+.w-full { width: 100%; }
+
+/* form 1 cột (thay style={{ gridTemplateColumns: '1fr' }}) */
+.form-grid.form-grid-1 { grid-template-columns: 1fr; }
+
+/* ô lọc rộng hơn cho combobox (thay style={{ minWidth: 200 }}) */
+.filter-bar .field.field-md { min-width: 200px; }
+
+/* card thứ 2+ trên cùng trang: tự cách đều, khỏi style={{ marginTop: 20 }} */
+.card + .card { margin-top: 20px; }
+
+/* checkbox + nhãn nằm ngang (form loại lỗi...) */
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.check-inline input { width: auto; }
+
+/* ---------- Báo công theo lô: ô chỉ số + chú thích màu ---------- */
+.hours-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.hours-card {
+  flex: 1 1 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.hours-card .hours-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+.hours-card .hours-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.legend-dot.is-thuong { background: #2a78d6; }
+.legend-dot.is-dacbiet { background: var(--warning); }
+
+.data-table tfoot tr {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+}
+
+/* ---------- Thanh tiến độ (dashboard theo lô) ---------- */
+.progress-cell { min-width: 240px; }
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #e1e0d9;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s;
+  width: var(--fill, 0%);
+  background: var(--bar, var(--primary));
+}
+.progress-pct {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--bar, var(--text-muted));
+}
+.progress-nums {
+  font-size: 12px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+.progress-breakdown {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* chú thích phụ nhỏ, nhẹ cạnh tiêu đề h2 (thay style={{ fontWeight: 400, marginLeft: 8 }}) */
+.h2-note {
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* thêm vài helper nhỏ cho đợt dọn inline style */
+.m-0 { margin: 0; }
+.mb-8 { margin-bottom: 8px; }
+.self-end { align-self: end; }
+.hint-xs { font-size: 11px; line-height: 1.5; }
+.card-narrow { max-width: 420px; }
+
+/* cặp select giờ:phút trong form báo cáo */
+.time-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* khối kết quả import Excel */
+.import-group-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.import-error-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-muted);
 }

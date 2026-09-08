@@ -105,13 +105,13 @@ export default function NhanSuPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Quản lý nhân sự
       </h1>
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <div className="field" style={{ minWidth: 220 }}>
+        <div className="field field-md">
           <label>Tìm kiếm</label>
           <input
             placeholder="Tìm theo tên hoặc username..."
@@ -200,7 +200,7 @@ export default function NhanSuPage() {
         <Modal title={modal === 'create' ? 'Tạo tài khoản nhân sự' : 'Sửa nhân sự'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-grid form-grid-1">
               <div className="field">
                 <label>Họ tên</label>
                 <input
@@ -240,7 +240,7 @@ export default function NhanSuPage() {
                 </select>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </form>
@@ -261,7 +261,7 @@ export default function NhanSuPage() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Đặt lại mật khẩu'}
             </button>
           </form>

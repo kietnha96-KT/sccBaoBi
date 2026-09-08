@@ -55,7 +55,7 @@ export default function VatTuFilterFields({
           </select>
         </div>
       )}
-      <div className="field" style={{ minWidth: 260 }}>
+      <div className="field field-md">
         <label>
           {vatTuLabelText}
           {vatTuRequired && <span className="req">*</span>}

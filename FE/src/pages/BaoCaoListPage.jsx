@@ -146,7 +146,7 @@ export default function BaoCaoListPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Danh sách báo cáo
       </h1>
 
@@ -173,7 +173,7 @@ export default function BaoCaoListPage() {
             updateFilter({ ma_vat_tu: v, lo_id: loMoiHopLe ? filters.lo_id : '' });
           }}
         />
-        <div className="field" style={{ minWidth: 220 }}>
+        <div className="field field-md">
           <label>Số lô</label>
           <SearchableSelect
             options={loList}
@@ -386,7 +386,7 @@ export default function BaoCaoListPage() {
       {viewRow && (
         <Modal title={`Báo cáo #${viewRow.id}`} onClose={() => setViewRow(null)} size="lg">
           <BaoCaoDetail baoCao={viewRow} />
-          <div className="btn-group" style={{ marginTop: 16 }}>
+          <div className="btn-group mt-16">
             <button type="button" className="btn" onClick={() => setViewRow(null)}>
               Đóng
             </button>

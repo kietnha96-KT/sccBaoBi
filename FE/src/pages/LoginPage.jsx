@@ -36,7 +36,7 @@ export default function LoginPage() {
 
         <Alert>{error}</Alert>
 
-        <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="form-grid form-grid-1">
           <div className="field">
             <label htmlFor="username">Username</label>
             <input
@@ -59,7 +59,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 18 }} disabled={loading}>
+        <button type="submit" className="btn btn-primary w-full mt-18" disabled={loading}>
           {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>

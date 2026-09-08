@@ -89,7 +89,7 @@ export default function LoaiLoiPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Danh mục loại lỗi
       </h1>
       <Alert>{error}</Alert>
@@ -176,7 +176,7 @@ export default function LoaiLoiPage() {
         <Modal title={modal === 'create' ? 'Thêm loại lỗi' : 'Sửa loại lỗi'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-grid form-grid-1">
               <VatTuFilterFields
                 vatTuList={vatTuList}
                 value={form.ma_vat_tu}
@@ -189,18 +189,17 @@ export default function LoaiLoiPage() {
                 <input value={form.ten_loi} onChange={(e) => setForm({ ...form, ten_loi: e.target.value })} required />
               </div>
               <div className="field">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <label className="check-inline">
                   <input
                     type="checkbox"
                     checked={form.la_loi_dac_biet}
                     onChange={(e) => setForm({ ...form, la_loi_dac_biet: e.target.checked })}
-                    style={{ width: 'auto' }}
                   />
                   Lỗi đặc biệt
                 </label>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </form>

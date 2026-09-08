@@ -29,14 +29,14 @@ export default function ChangePasswordPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Đổi mật khẩu
       </h1>
-      <div className="card" style={{ maxWidth: 420 }}>
+      <div className="card card-narrow">
         <form className="card-body" onSubmit={handleSubmit}>
           <Alert>{error}</Alert>
           <Alert type="success">{success}</Alert>
-          <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="form-grid form-grid-1">
             <div className="field">
               <label>Mật khẩu hiện tại</label>
               <input
@@ -57,7 +57,7 @@ export default function ChangePasswordPage() {
               />
             </div>
           </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={loading}>
+          <button type="submit" className="btn btn-primary mt-16" disabled={loading}>
             {loading ? 'Đang lưu...' : 'Đổi mật khẩu'}
           </button>
         </form>

@@ -40,7 +40,7 @@ function TimeSelect({ label, value, onChange, disabled, required }) {
         {label}
         {required && <span className="req">*</span>}
       </label>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="time-row">
         <select value={h} onChange={(e) => setPart(e.target.value, m)} disabled={disabled} aria-label={`${label} - giờ`}>
           <option value="">Giờ</option>
           {GIO_OPTIONS.map((x) => (
@@ -317,7 +317,7 @@ export default function BaoCaoForm({ id, onDone }) {
           required
         />
 
-        <div className="field checkbox-row" style={{ alignSelf: 'end' }}>
+        <div className="field checkbox-row self-end">
           <input
             type="checkbox"
             id="la_lua_lai"
@@ -325,13 +325,13 @@ export default function BaoCaoForm({ id, onDone }) {
             onChange={(e) => setForm({ ...form, la_lua_lai: e.target.checked })}
             disabled={disabled}
           />
-          <label htmlFor="la_lua_lai" style={{ margin: 0 }}>
+          <label htmlFor="la_lua_lai" className="m-0">
             Bấm chọn nếu lựa lại
           </label>
         </div>
       </div>
 
-      <div className="field" style={{ marginTop: 14 }}>
+      <div className="field mt-14">
         <label>
           Lỗi (ghi chú tự do)<span className="req">*</span>
         </label>
@@ -344,7 +344,7 @@ export default function BaoCaoForm({ id, onDone }) {
         />
       </div>
 
-      <div className="field" style={{ marginTop: 14 }}>
+      <div className="field mt-14">
         <label>Ghi chú</label>
         <textarea
           rows={2}
@@ -354,7 +354,7 @@ export default function BaoCaoForm({ id, onDone }) {
         />
       </div>
 
-      <div className="field" style={{ marginTop: 14 }}>
+      <div className="field mt-14">
         <label>
           Nhân sự tham gia<span className="req">*</span>
         </label>
@@ -373,7 +373,7 @@ export default function BaoCaoForm({ id, onDone }) {
         </div>
       </div>
 
-      <div className="btn-group" style={{ marginTop: 20 }}>
+      <div className="btn-group mt-20">
         <button type="submit" className="btn btn-primary" disabled={saving || disabled}>
           {saving ? 'Đang lưu...' : 'Lưu báo cáo'}
         </button>

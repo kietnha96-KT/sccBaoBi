@@ -84,7 +84,7 @@ export default function BaoCaoDetail({ baoCao: bc }) {
       <dd>{nhanSu}</dd>
 
       <dt>Ghi chú:</dt>
-      <dd style={{ whiteSpace: 'pre-wrap' }}>{bc.ghi_chu || ' '}</dd>
+      <dd className="pre-wrap">{bc.ghi_chu || ' '}</dd>
 
       <dt>Tạo lúc:</dt>
       <dd>{bc.created_at ? new Date(bc.created_at).toLocaleString('vi-VN') : '—'}</dd>

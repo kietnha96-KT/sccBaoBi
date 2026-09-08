@@ -97,7 +97,7 @@ export default function DashboardVatTuPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Dashboard năng suất theo vật tư
       </h1>
       <Alert>{error}</Alert>
@@ -108,7 +108,7 @@ export default function DashboardVatTuPage() {
         extra={
           <>
             <VatTuFilterFields vatTuList={vatTuList} value={filters.ma_vat_tu} onChange={handleVatTuChange} />
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Số lô</label>
               <SearchableSelect
                 options={loList}
@@ -130,7 +130,7 @@ export default function DashboardVatTuPage() {
                 ))}
               </select>
             </div>
-            <div className="field" style={{ minWidth: 200 }}>
+            <div className="field field-md">
               <label>Nhà cung cấp</label>
               <SearchableSelect
                 options={nccList}
@@ -176,7 +176,7 @@ export default function DashboardVatTuPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Bảng chi tiết theo vật tư</h2>
         </div>
@@ -220,7 +220,7 @@ export default function DashboardVatTuPage() {
         <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card">
         <div className="card-header">
           <h2>Breakdown lỗi theo vật tư</h2>
           <button

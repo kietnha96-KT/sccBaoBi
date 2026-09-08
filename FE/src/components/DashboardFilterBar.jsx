@@ -21,7 +21,7 @@ export default function DashboardFilterBar({ filters, setFilters, vatTuList, sho
         />
       )}
       {showLo && (
-        <div className="field" style={{ minWidth: 220 }}>
+        <div className="field field-md">
           <label>Lô</label>
           <SearchableSelect
             options={loList || []}

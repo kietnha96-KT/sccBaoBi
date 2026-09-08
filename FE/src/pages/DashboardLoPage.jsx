@@ -57,7 +57,7 @@ export default function DashboardLoPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Dashboard năng suất / tiến độ theo lô
       </h1>
       <Alert>{error}</Alert>
@@ -67,7 +67,7 @@ export default function DashboardLoPage() {
         setFilters={handleFilterChange}
         vatTuList={vatTuList}
         extra={
-          <div className="field" style={{ minWidth: 200 }}>
+          <div className="field field-md">
             <label>Nhà cung cấp</label>
             <SearchableSelect
               options={nccList}
@@ -86,7 +86,7 @@ export default function DashboardLoPage() {
           <h2>
             Tiến độ lựa theo lô
             {hideTienDo && (
-              <span className="field-hint" style={{ fontWeight: 400, marginLeft: 8 }}>
+              <span className="field-hint h2-note">
                 (đang lọc Lựa lại — đã ẩn cột tiến độ)
               </span>
             )}
@@ -132,31 +132,31 @@ export default function DashboardLoPage() {
                       {/* <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
                       <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
                       {!hideTienDo && (
-                      <td style={{ minWidth: 240 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#e1e0d9', overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width .2s' }} />
+                      <td className="progress-cell">
+                        <div className="progress-row">
+                          <div className="progress-track">
+                            <div className="progress-fill" style={{ '--fill': `${pct}%`, '--bar': barColor }} />
                           </div>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}>
+                          <span className="progress-pct" style={{ '--bar': barColor }}>
                             {pct.toFixed(0)}%
                           </span>
                         </div>
-                        <div style={{ fontSize: 12, marginTop: 3, whiteSpace: 'nowrap' }}>
-                          <strong style={{ color: 'var(--success)' }}>{formatSoLuong(daLua)}</strong>
-                          <span style={{ color: 'var(--text-muted)' }}> / {soLuong > 0 ? formatSoLuong(soLuong) : '—'}</span>
+                        <div className="progress-nums">
+                          <strong className="text-success">{formatSoLuong(daLua)}</strong>
+                          <span className="text-muted"> / {soLuong > 0 ? formatSoLuong(soLuong) : '—'}</span>
                           {soLuong > 0 && (
                             <>
-                              <span style={{ color: 'var(--text-muted)' }}> · </span>
+                              <span className="text-muted"> · </span>
                               {xong ? (
-                                <span style={{ color: 'var(--success)', fontWeight: 600 }}>đã đủ</span>
+                                <span className="text-success fw-600">đã đủ</span>
                               ) : (
-                                <span style={{ color: 'var(--warning)', fontWeight: 600 }}>còn {formatSoLuong(conLai)}</span>
+                                <span className="text-warning fw-600">còn {formatSoLuong(conLai)}</span>
                               )}
                             </>
                           )}
                         </div>
                         {(r.da_lua_dac_biet || []).length > 0 && (
-                          <div className="field-hint" style={{ fontSize: 11, marginTop: 2 }}>
+                          <div className="field-hint progress-breakdown">
                             {(r.da_lua_dac_biet || []).map((x) => (
                               <span key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}&nbsp;&nbsp;</span>
                             ))}

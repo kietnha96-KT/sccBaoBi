@@ -93,13 +93,13 @@ export default function VatTuPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Danh mục vật tư
       </h1>
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <div className="field" style={{ minWidth: 240 }}>
+        <div className="field field-md">
           <label>Tìm kiếm</label>
           <input
             placeholder="Tìm theo mã hoặc tên vật tư..."
@@ -203,7 +203,7 @@ export default function VatTuPage() {
         <Modal title={modal === 'create' ? 'Thêm vật tư' : 'Sửa vật tư'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-grid form-grid-1">
               <div className="field">
                 <label>Mã vật tư</label>
                 <input
@@ -244,7 +244,7 @@ export default function VatTuPage() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </form>

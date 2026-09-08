@@ -81,13 +81,13 @@ export default function NhaCungCapPage() {
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
+      <h1 className="page-title">
         Danh mục nhà cung cấp
       </h1>
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <div className="field" style={{ minWidth: 240 }}>
+        <div className="field field-md">
           <label>Tìm kiếm</label>
           <input
             placeholder="Tìm theo mã hoặc tên nhà cung cấp..."
@@ -171,7 +171,7 @@ export default function NhaCungCapPage() {
         <Modal title={modal === 'create' ? 'Thêm nhà cung cấp' : 'Sửa nhà cung cấp'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-grid form-grid-1">
               <div className="field">
                 <label>Mã nhà cung cấp</label>
                 <input
@@ -190,7 +190,7 @@ export default function NhaCungCapPage() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
+            <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </form>
