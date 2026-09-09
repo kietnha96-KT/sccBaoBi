@@ -1,27 +1,24 @@
 import { useState } from 'react';
 import { dashboardTheoLo } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
+import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
+import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
-import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
 import TruncatedText from '../components/TruncatedText';
+import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
-import { nccValue, nccLabel } from '../selectHelpers';
+import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE } from '../chartColors';
 
-const emptyFilters = {
-  tu_ngay: firstDayOfThisMonth(),
-  den_ngay: lastDayOfThisMonth(),
-  ma_vat_tu: '',
-  la_lua_lai: 'false',
-  ma_ncc: '',
-};
+// Tiến độ theo lô = toàn bộ lịch sử của lô (KHÔNG lọc ngày, giống Báo công / Sản lượng),
+// chỉ báo cáo lựa chính.
+const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '' };
 
 export default function DashboardLoPage() {
   const [page, setPage] = useState(1);
@@ -29,18 +26,21 @@ export default function DashboardLoPage() {
   const { getRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
     () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.la_lua_lai, filters.ma_ncc, page]
+    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
+  const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const nccList = nccData?.data || [];
+  const loList = filters.ma_vat_tu
+    ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
+    : loData?.data || [];
 
   function cleanParams(f) {
-    const p = { la_lua_lai: f.la_lua_lai };
-    if (f.tu_ngay) p.tu_ngay = f.tu_ngay;
-    if (f.den_ngay) p.den_ngay = f.den_ngay;
+    const p = {};
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
+    if (f.lo_id) p.lo_id = f.lo_id;
     if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
     return p;
   }
@@ -50,10 +50,14 @@ export default function DashboardLoPage() {
     setPage(1);
   }
 
+  function handleVatTuChange(v) {
+    const loConHopLe = !v || !filters.lo_id || (loData?.data || []).some(
+      (l) => String(l.id) === String(filters.lo_id) && l.ma_vat_tu === v
+    );
+    handleFilterChange({ ...filters, ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
+  }
+
   const rows = data?.data || [];
-  // Cột "Tiến độ / đã lựa / còn lại" luôn tính theo báo cáo LỰA CHÍNH (không đổi theo filter,
-  // không lọc ngày). Khi đang lọc riêng "Lựa lại" thì con số này gây hiểu nhầm -> ẩn cột đi.
-  const hideTienDo = filters.la_lua_lai === 'true';
 
   return (
     <div>
@@ -62,34 +66,37 @@ export default function DashboardLoPage() {
       </h1>
       <Alert>{error}</Alert>
 
-      <DashboardFilterBar
-        filters={filters}
-        setFilters={handleFilterChange}
-        vatTuList={vatTuList}
-        extra={
-          <div className="field field-md">
-            <label>Nhà cung cấp</label>
-            <SearchableSelect
-              options={nccList}
-              getValue={nccValue}
-              getLabel={nccLabel}
-              value={filters.ma_ncc}
-              onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
-              placeholder="Gõ để tìm..."
-            />
-          </div>
-        }
-      />
+      <div className="filter-bar">
+        <VatTuFilterFields vatTuList={vatTuList} value={filters.ma_vat_tu} onChange={handleVatTuChange} />
+        <div className="field field-md">
+          <label>Số lô</label>
+          <SearchableSelect
+            options={loList}
+            getValue={loValue}
+            getLabel={loLabel}
+            value={filters.lo_id}
+            onChange={(v) => handleFilterChange({ ...filters, lo_id: v })}
+            placeholder="Gõ số lô..."
+          />
+        </div>
+        <div className="field field-md">
+          <label>Nhà cung cấp</label>
+          <SearchableSelect
+            options={nccList}
+            getValue={nccValue}
+            getLabel={nccLabel}
+            value={filters.ma_ncc}
+            onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+            placeholder="Gõ để tìm..."
+          />
+        </div>
+      </div>
 
       <div className="card">
         <div className="card-header">
           <h2>
             Tiến độ lựa theo lô
-            {hideTienDo && (
-              <span className="field-hint h2-note">
-                (đang lọc Lựa lại — đã ẩn cột tiến độ)
-              </span>
-            )}
+            <span className="field-hint h2-note">(toàn bộ lịch sử lô · chỉ lựa chính)</span>
           </h2>
           <button
             className="btn btn-sm"
@@ -110,7 +117,7 @@ export default function DashboardLoPage() {
                   <th>Số lô</th>
                   {/* <th>Ngày SX</th> */}
                   <th>Nhà cung cấp</th>
-                  {!hideTienDo && <th>Tiến độ (đã lựa / tổng · còn lại)</th>}
+                  <th>Tiến độ (đã lựa / tổng · còn lại)</th>
                   <th>Số báo cáo</th>
                   <th>Năng suất TB (8h)</th>
                 </tr>
@@ -131,7 +138,6 @@ export default function DashboardLoPage() {
                       <td>{r.so_lo}</td>
                       {/* <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
                       <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
-                      {!hideTienDo && (
                       <td className="progress-cell">
                         <div className="progress-row">
                           <div className="progress-track">
@@ -163,7 +169,6 @@ export default function DashboardLoPage() {
                           </div>
                         )}
                       </td>
-                      )}
                       <td>{formatSoLuong(r.so_bao_cao)}</td>
                       <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
                     </tr>
@@ -171,7 +176,7 @@ export default function DashboardLoPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={hideTienDo ? 6 : 7} className="empty-state">
+                    <td colSpan={7} className="empty-state">
                       Không có dữ liệu
                     </td>
                   </tr>

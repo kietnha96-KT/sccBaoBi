@@ -341,12 +341,11 @@ router.get(
 
 // ================= 3. DASHBOARD THEO LÔ =================
 function buildTheoLoQuery(query) {
-  const aggParams = [];
-  let aggWhere = 'WHERE 1=1';
-  aggWhere += ` ${laLuaLaiClause(query, aggParams)}`;
-  aggWhere += dateRangeClause(query, aggParams);
-
-  const outerParams = [...aggParams];
+  // Tiến độ theo lô = TOÀN BỘ lịch sử của lô (không lọc ngày), CHỈ báo cáo lựa chính -
+  // giống Báo công / Sản lượng & hư bỏ. "Đã lựa / còn lại" vốn đã xuyên suốt (LO_DA_LUA_JOIN);
+  // ở đây thêm số báo cáo + năng suất TB cũng tính trên toàn bộ lô, chỉ lựa chính.
+  const outerParams = [];
+  const aggWhere = 'WHERE bcns.la_lua_lai = FALSE';
   let outerWhere = 'WHERE 1=1';
   if (query.ma_vat_tu) {
     outerParams.push(query.ma_vat_tu);
