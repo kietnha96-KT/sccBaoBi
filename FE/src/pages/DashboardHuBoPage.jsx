@@ -164,7 +164,7 @@ export default function DashboardHuBoPage() {
           label={
             selectedRow && (
               <>
-                <strong>{selectedRow.ma_vat_tu}</strong> · {selectedRow.ten_vat_tu}
+                <strong>{selectedRow.ma_vat_tu}</strong> / {selectedRow.so_lo} · {selectedRow.ten_vat_tu}
               </>
             )
           }

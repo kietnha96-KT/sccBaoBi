@@ -52,7 +52,7 @@ export default function Layout() {
                 Năng suất theo vật tư
               </NavLink>
               <NavLink to="/dashboard/lo" className={navLinkClass}>
-                Năng suất theo lô
+                Tiến độ theo lô
               </NavLink>
               <NavLink to="/dashboard/hu-bo" className={navLinkClass}>
                 Thống kê hư bỏ

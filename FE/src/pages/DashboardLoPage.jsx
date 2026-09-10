@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dashboardTheoLo } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
 import Alert from '../components/Alert';
+import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
-import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SelectionActionBar from '../components/SelectionActionBar';
+import TheoLoDetail from '../components/TheoLoDetail';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE } from '../chartColors';
@@ -23,7 +26,9 @@ const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '' };
 export default function DashboardLoPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(emptyFilters);
-  const { getRowProps } = useRowSelect();
+  const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
+  const [viewRow, setViewRow] = useState(null);
+  useCloseOnBackButton(!!viewRow, () => setViewRow(null));
   const { data, loading, error } = useFetch(
     () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
     [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
@@ -58,11 +63,17 @@ export default function DashboardLoPage() {
   }
 
   const rows = data?.data || [];
+  const selectedRow = rows.find((r) => r.lo_id === selectedRowId) || null;
+
+  // đổi bộ lọc / trang -> bỏ chọn
+  useEffect(() => {
+    setSelectedRowId(null);
+  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page, setSelectedRowId]);
 
   return (
-    <div>
+    <div className={selectedRow ? 'has-selection-bar' : undefined}>
       <h1 className="page-title">
-        Dashboard năng suất / tiến độ theo lô
+        Tiến độ theo lô
       </h1>
       <Alert>{error}</Alert>
 
@@ -105,6 +116,32 @@ export default function DashboardLoPage() {
             Xuất Excel
           </button>
         </div>
+
+        <SelectionActionBar
+          selected={selectedRow}
+          onClear={() => setSelectedRowId(null)}
+          idleHint="Bấm vào một dòng để xem chi tiết từng báo cáo"
+          label={
+            selectedRow && (
+              <>
+                <strong>{selectedRow.ma_vat_tu}</strong> / {selectedRow.so_lo} · {selectedRow.ten_vat_tu}
+              </>
+            )
+          }
+          extra={
+            selectedRow && (
+              <>
+                đã lựa <strong>{formatSoLuong(selectedRow.da_lua)}</strong> / còn{' '}
+                <strong>{formatSoLuong(selectedRow.con_lai)}</strong>
+              </>
+            )
+          }
+        >
+          <button className="btn btn-sm btn-primary" onClick={() => setViewRow(selectedRow)}>
+            Xem
+          </button>
+        </SelectionActionBar>
+
         <div className="table-wrap">
           {loading ? (
             <div className="spinner-text">Đang tải...</div>
@@ -113,13 +150,13 @@ export default function DashboardLoPage() {
               <thead>
                 <tr>
                   <th>Mã vật tư</th>
-                  <th>Tên vật tư</th>
+                  {/* <th>Tên vật tư</th> */}
                   <th>Số lô</th>
                   {/* <th>Ngày SX</th> */}
-                  <th>Nhà cung cấp</th>
+                  {/* <th>Nhà cung cấp</th> */}
                   <th>Tiến độ (đã lựa / tổng · còn lại)</th>
                   <th>Số báo cáo</th>
-                  <th>Năng suất TB (8h)</th>
+                  {/* <th>Năng suất TB (8h)</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -134,10 +171,10 @@ export default function DashboardLoPage() {
                   return (
                     <tr key={r.lo_id} {...getRowProps(r.lo_id)}>
                       <td>{r.ma_vat_tu}</td>
-                      <td><TruncatedText text={r.ten_vat_tu} /></td>
+                      {/* <td><TruncatedText text={r.ten_vat_tu} /></td> */}
                       <td>{r.so_lo}</td>
                       {/* <td>{r.ngay_san_xuat ? new Date(r.ngay_san_xuat).toLocaleDateString('vi-VN') : '-'}</td> */}
-                      <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td>
+                      {/* <td><TruncatedText text={r.ten_ncc} fallback={<span className="field-hint">Chưa có</span>} /></td> */}
                       <td className="progress-cell">
                         <div className="progress-row">
                           <div className="progress-track">
@@ -170,13 +207,13 @@ export default function DashboardLoPage() {
                         )}
                       </td>
                       <td>{formatSoLuong(r.so_bao_cao)}</td>
-                      <td>{formatSoThapPhan(r.nang_suat_tb)}</td>
+                      {/* <td>{formatSoThapPhan(r.nang_suat_tb)}</td> */}
                     </tr>
                   );
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="empty-state">
+                    <td colSpan={6} className="empty-state">
                       Không có dữ liệu
                     </td>
                   </tr>
@@ -187,6 +224,21 @@ export default function DashboardLoPage() {
         </div>
         <Pagination pagination={data?.pagination} onPageChange={setPage} />
       </div>
+
+      {viewRow && (
+        <Modal
+          title={`Chi tiết lô ${viewRow.so_lo} (${viewRow.ma_vat_tu})`}
+          onClose={() => setViewRow(null)}
+          size="lg"
+        >
+          <TheoLoDetail row={viewRow} />
+          <div className="btn-group mt-16">
+            <button type="button" className="btn" onClick={() => setViewRow(null)}>
+              Đóng
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -256,8 +256,7 @@ export default function BaoCaoListPage() {
           label={
             selectedRow && (
               <>
-                <strong>{selectedRow.ma_vat_tu}</strong> ·{' '}
-                {selectedRow.ten_vat_tu}
+                <strong>{selectedRow.ma_vat_tu}</strong> / {selectedRow.so_lo} · {selectedRow.ten_vat_tu}
                 {/* {new Date(selectedRow.ngay).toLocaleDateString('vi-VN')} */}
                 {!canModifySelected && <span className="field-hint"> · đã khóa</span>}
               </>

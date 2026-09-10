@@ -128,7 +128,7 @@ export default function DashboardBaoCongLoPage() {
           selected={selectedLo}
           onClear={() => setSelectedRowId(null)}
           idleHint="Bấm vào một dòng để xem chi tiết giờ theo người"
-          label={selectedLo && (<><strong>{selectedLo.ma_vat_tu}</strong> · lô {selectedLo.ten_vat_tu}</>)}
+          label={selectedLo && (<><strong>{selectedLo.ma_vat_tu}</strong> / {selectedLo.so_lo} · {selectedLo.ten_vat_tu}</>)}
           extra={
             selectedLo && (
               <>

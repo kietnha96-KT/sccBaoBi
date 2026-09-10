@@ -395,6 +395,34 @@ router.get(
   })
 );
 
+// Bảng chi tiết: từng báo cáo LỰA CHÍNH của 1 lô đã bấm (gồm cả báo cáo lỗi đặc biệt,
+// có đánh dấu). Dùng cho popup "Xem" ở Dashboard tiến độ theo lô.
+router.get(
+  '/lo/chi-tiet',
+  asyncHandler(async (req, res) => {
+    const sql = `
+      ${BC_CALC_CTE}
+      SELECT
+        bcns.id, bcns.ngay, bcns.dat, bcns.hu_bo, bcns.tong_lua, bcns.la_lua_lai,
+        bcns.nang_suat_8h,
+        COALESCE(ll.ten_loi, bcns.loi_nguoi_dung) AS ten_loi,
+        (ll.ten_loi IS NOT NULL) AS da_gan_nhan,
+        COALESCE(ll.la_loi_dac_biet, FALSE) AS la_loi_dac_biet,
+        (
+          SELECT string_agg(n2.ho_ten, ', ' ORDER BY n2.ho_ten)
+          FROM BaoCao_NhanSu bn2 JOIN NhanSu n2 ON n2.id = bn2.nhansu_id
+          WHERE bn2.baocao_id = bcns.id
+        ) AS nhan_su_tham_gia
+      FROM bc_nang_suat bcns
+      LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
+      WHERE bcns.lo_id = $1 AND bcns.la_lua_lai = FALSE
+      ORDER BY bcns.ngay DESC, bcns.id DESC
+    `;
+    const result = await pool.query(sql, [req.query.lo_id]);
+    res.json({ data: result.rows });
+  })
+);
+
 router.get(
   '/lo/export',
   asyncHandler(async (req, res) => {
