@@ -14,6 +14,10 @@ export default function BaoCaoDetail({ baoCao: bc }) {
       : '—';
   const nhanSu = (bc.nhansu_tham_gia || []).map((n) => n.ho_ten).join(', ') || '—';
 
+  const chiTietLoi = bc.chi_tiet_loi || [];
+  const tongChiTiet = chiTietLoi.reduce((s, x) => s + (Number(x.so_luong) || 0), 0);
+  const chuaPhanLoai = (Number(bc.hu_bo) || 0) - tongChiTiet;
+
   return (
     <dl className="detail-list">
       <dt>Ngày lựa:</dt>
@@ -40,6 +44,24 @@ export default function BaoCaoDetail({ baoCao: bc }) {
 
       <dt>Hư bỏ:</dt>
       <dd>{formatSoLuong(bc.hu_bo)}</dd>
+
+      {chiTietLoi.length > 0 && (
+        <>
+          <dt>Hư bỏ chi tiết:</dt>
+          <dd>
+            {chiTietLoi.map((x) => (
+              <div key={x.loai_loi_id}>
+                {x.ten_loi}: <strong>{formatSoLuong(x.so_luong)}</strong>
+              </div>
+            ))}
+            {chuaPhanLoai > 0 && (
+              <div className="field-hint">
+                Còn lại: <strong>{formatSoLuong(chuaPhanLoai)}</strong>
+              </div>
+            )}
+          </dd>
+        </>
+      )}
 
       <dt>Tổng lựa:</dt>
       <dd>

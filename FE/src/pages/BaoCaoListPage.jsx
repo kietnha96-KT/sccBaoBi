@@ -331,7 +331,9 @@ export default function BaoCaoListPage() {
                         >
                           <option value="">-- Chưa gán --</option>
                           {loaiLoiList
-                            ?.filter((l) => l.ma_vat_tu === row.ma_vat_tu)
+                            ?.filter(
+                              (l) => l.ma_vat_tu === row.ma_vat_tu && l.muc_dich !== 'tach_hu_bo'
+                            )
                             .map((l) => (
                               <option key={l.id} value={l.id}>
                                 {l.ten_loi}

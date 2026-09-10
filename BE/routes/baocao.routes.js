@@ -37,7 +37,14 @@ const LIST_SELECT = `
       SELECT COALESCE(json_agg(json_build_object('id', n2.id, 'ho_ten', n2.ho_ten) ORDER BY n2.ho_ten), '[]')
       FROM BaoCao_NhanSu bcns2 JOIN NhanSu n2 ON n2.id = bcns2.nhansu_id
       WHERE bcns2.baocao_id = bc.id
-    ) AS nhansu_tham_gia
+    ) AS nhansu_tham_gia,
+    (
+      SELECT COALESCE(json_agg(json_build_object(
+        'loai_loi_id', ct.loai_loi_id, 'ten_loi', llct.ten_loi, 'so_luong', ct.so_luong
+      ) ORDER BY ct.so_luong DESC, llct.ten_loi), '[]')
+      FROM BaoCao_LoiChiTiet ct JOIN LoaiLoi llct ON llct.id = ct.loai_loi_id
+      WHERE ct.baocao_id = bc.id
+    ) AS chi_tiet_loi
   ${BASE_FROM}
 `;
 
@@ -194,6 +201,60 @@ function normalizeGioLamViec(tg_bat_dau, tg_ket_thuc) {
   return { tg_bat_dau: bd, tg_ket_thuc: kt };
 }
 
+// Chuẩn hóa danh sách "hư bỏ chi tiết theo loại lỗi": [{ loai_loi_id, so_luong }].
+// - bỏ dòng so_luong <= 0 hoặc thiếu loai_loi_id
+// - gộp trùng loai_loi_id lại
+// - tổng so_luong không được vượt hu_bo (phần chênh lệch = "chưa phân loại")
+// Kiểm tra loai_loi_id có thuộc vật tư của lô + đúng muc_dich làm ở trong transaction.
+function parseChiTietLoi(raw, huBo) {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) throw new AppError(400, 'chi_tiet_loi phải là mảng');
+
+  const theoId = new Map();
+  for (const item of raw) {
+    const id = Number(item?.loai_loi_id);
+    const sl = Number(item?.so_luong);
+    if (!Number.isInteger(id) || id <= 0) continue;
+    if (!Number.isFinite(sl) || sl < 0) {
+      throw new AppError(400, 'Số lượng hư bỏ chi tiết không hợp lệ');
+    }
+    if (sl === 0) continue;
+    theoId.set(id, (theoId.get(id) || 0) + sl);
+  }
+
+  const list = [...theoId.entries()].map(([loai_loi_id, so_luong]) => ({ loai_loi_id, so_luong }));
+  const tong = list.reduce((s, x) => s + x.so_luong, 0);
+  if (tong > Number(huBo) + 1e-6) {
+    throw new AppError(
+      400,
+      `Tổng hư bỏ chi tiết (${tong}) vượt quá số Hư bỏ (${Number(huBo)}). Hãy tăng Hư bỏ hoặc giảm các ô chi tiết.`
+    );
+  }
+  return list;
+}
+
+// Kiểm tra mọi loai_loi_id trong danh sách chi tiết đều thuộc vật tư của lô và có
+// muc_dich cho phép tách hư bỏ ('tach_hu_bo' | 'ca_hai').
+async function assertChiTietLoiHopLe(client, lo_id, list) {
+  if (!list.length) return;
+  const ids = list.map((x) => x.loai_loi_id);
+  const r = await client.query(
+    `SELECT ll.id
+     FROM LoaiLoi ll
+     JOIN Lo l ON l.ma_vat_tu = ll.ma_vat_tu
+     WHERE l.id = $1 AND ll.id = ANY($2::int[]) AND ll.muc_dich IN ('tach_hu_bo', 'ca_hai')`,
+    [lo_id, ids]
+  );
+  const hopLe = new Set(r.rows.map((x) => x.id));
+  const sai = ids.filter((id) => !hopLe.has(id));
+  if (sai.length) {
+    throw new AppError(
+      400,
+      'Có loại lỗi chi tiết không thuộc vật tư của lô hoặc không được đặt để tách hư bỏ'
+    );
+  }
+}
+
 // Chuẩn hóa + validate payload nhập/sửa báo cáo
 function parseReportBody(body) {
   const { ngay, lo_id, dat, hu_bo, tg_bat_dau, tg_ket_thuc, loi_nguoi_dung, la_lua_lai, ghi_chu, nhansu_ids } =
@@ -223,6 +284,7 @@ function parseReportBody(body) {
     la_lua_lai: !!la_lua_lai,
     ghi_chu: ghi_chu || null,
     nhansu_ids: [...new Set(nhansu_ids.map(Number))],
+    chi_tiet_loi: parseChiTietLoi(body.chi_tiet_loi, hu_bo ?? 0),
   };
 }
 
@@ -332,6 +394,14 @@ router.post(
         );
       }
 
+      await assertChiTietLoiHopLe(client, payload.lo_id, payload.chi_tiet_loi);
+      for (const item of payload.chi_tiet_loi) {
+        await client.query(
+          'INSERT INTO BaoCao_LoiChiTiet (baocao_id, loai_loi_id, so_luong) VALUES ($1, $2, $3)',
+          [baocaoId, item.loai_loi_id, item.so_luong]
+        );
+      }
+
       await client.query('COMMIT');
 
       const full = await pool.query(`${LIST_SELECT} WHERE bc.id = $1`, [baocaoId]);
@@ -420,6 +490,15 @@ router.put(
         );
       }
 
+      await assertChiTietLoiHopLe(client, payload.lo_id, payload.chi_tiet_loi);
+      await client.query('DELETE FROM BaoCao_LoiChiTiet WHERE baocao_id = $1', [baocaoId]);
+      for (const item of payload.chi_tiet_loi) {
+        await client.query(
+          'INSERT INTO BaoCao_LoiChiTiet (baocao_id, loai_loi_id, so_luong) VALUES ($1, $2, $3)',
+          [baocaoId, item.loai_loi_id, item.so_luong]
+        );
+      }
+
       await client.query('COMMIT');
 
       const full = await pool.query(`${LIST_SELECT} WHERE bc.id = $1`, [baocaoId]);
@@ -443,6 +522,7 @@ router.delete(
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query('DELETE FROM BaoCao_LoiChiTiet WHERE baocao_id = $1', [baocaoId]);
       await client.query('DELETE FROM BaoCao_NhanSu WHERE baocao_id = $1', [baocaoId]);
       await client.query('DELETE FROM BaoCao WHERE id = $1', [baocaoId]);
       await client.query('COMMIT');

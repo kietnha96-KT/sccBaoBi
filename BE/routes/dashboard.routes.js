@@ -681,6 +681,39 @@ function buildHuBoChiTietQuery(query) {
   return { sql, params };
 }
 
+// Rollup hư bỏ CHI TIẾT theo loại lỗi cho 1 lô đã bấm (dùng chung bộ lọc với bảng lô).
+// Mỗi dòng = 1 loại lỗi + tổng số lượng hư bỏ đã bóc tách. FE tự tính "chưa phân loại"
+// = tong_hu_bo - SUM(so_luong).
+function buildHuBoTheoLoiQuery(query) {
+  const { where, params } = huBoWhere(query);
+  params.push(query.lo_id);
+  const sql = `
+    SELECT lld.id AS loai_loi_id, lld.ten_loi, SUM(ct.so_luong) AS so_luong
+    ${HU_BO_JOINS}
+    JOIN BaoCao_LoiChiTiet ct ON ct.baocao_id = bc.id
+    JOIN LoaiLoi lld ON lld.id = ct.loai_loi_id
+    ${where} AND l.id = $${params.length}
+    GROUP BY lld.id, lld.ten_loi
+    ORDER BY SUM(ct.so_luong) DESC, lld.ten_loi ASC
+  `;
+  return { sql, params };
+}
+
+// Như trên nhưng cho TẤT CẢ lô trong bộ lọc (không ghim 1 lô) - dùng cho xuất Excel
+// dạng "mỗi lỗi 1 cột".
+function buildHuBoTheoLoiTatCaQuery(query) {
+  const { where, params } = huBoWhere(query);
+  const sql = `
+    SELECT l.id AS lo_id, lld.ten_loi, SUM(ct.so_luong) AS so_luong
+    ${HU_BO_JOINS}
+    JOIN BaoCao_LoiChiTiet ct ON ct.baocao_id = bc.id
+    JOIN LoaiLoi lld ON lld.id = ct.loai_loi_id
+    ${where}
+    GROUP BY l.id, lld.ten_loi
+  `;
+  return { sql, params };
+}
+
 function huBoSummary(rows) {
   const hu = rows.reduce((s, r) => s + Number(r.tong_hu_bo || 0), 0);
   const lua = rows.reduce((s, r) => s + Number(r.tong_lua || 0), 0);
@@ -710,8 +743,12 @@ router.get(
   '/hu-bo/chi-tiet',
   asyncHandler(async (req, res) => {
     const { sql, params } = buildHuBoChiTietQuery(req.query);
-    const result = await pool.query(sql, params);
-    res.json({ data: result.rows });
+    const theoLoi = buildHuBoTheoLoiQuery(req.query);
+    const [result, theoLoiResult] = await Promise.all([
+      pool.query(sql, params),
+      pool.query(theoLoi.sql, theoLoi.params),
+    ]);
+    res.json({ data: result.rows, theo_loi: theoLoiResult.rows });
   })
 );
 
@@ -719,7 +756,38 @@ router.get(
   '/hu-bo/export',
   asyncHandler(async (req, res) => {
     const { sql, params } = buildHuBoQuery(req.query);
-    const result = await pool.query(sql, params);
+    const bd = buildHuBoTheoLoiTatCaQuery(req.query);
+    const [result, bdResult] = await Promise.all([
+      pool.query(sql, params),
+      pool.query(bd.sql, bd.params),
+    ]);
+
+    // Gom breakdown theo lô: byLo[lo_id] = { [ten_loi]: so_luong }. Cột "chi tiết" là
+    // ĐỘNG - mỗi loại lỗi (theo tên) xuất hiện trong bộ lọc là 1 cột. Lô nào vật tư không
+    // có lỗi đó thì ô trống. Thêm cột "Chưa phân loại" = Tổng hư bỏ - tổng các cột lỗi.
+    const byLo = new Map();
+    const tenLoiSet = new Set();
+    for (const r of bdResult.rows) {
+      tenLoiSet.add(r.ten_loi);
+      if (!byLo.has(r.lo_id)) byLo.set(r.lo_id, {});
+      byLo.get(r.lo_id)[r.ten_loi] = Number(r.so_luong) || 0;
+    }
+    const tenLoiList = [...tenLoiSet].sort((a, b) => a.localeCompare(b, 'vi'));
+
+    const rows = result.rows.map((row) => {
+      const map = byLo.get(row.lo_id) || {};
+      const out = { ...row };
+      let tongBd = 0;
+      for (const t of tenLoiList) {
+        if (map[t] != null) {
+          out[`loi__${t}`] = map[t];
+          tongBd += map[t];
+        }
+      }
+      out.chua_phan_loai = Math.max(0, Number(row.tong_hu_bo || 0) - tongBd);
+      return out;
+    });
+
     await sendExcel(res, {
       sheetName: 'HuBo',
       fileName: 'dashboard_hu_bo',
@@ -733,8 +801,10 @@ router.get(
         { header: 'Tổng hư bỏ', key: 'tong_hu_bo', width: 14 },
         { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
         { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
+        ...tenLoiList.map((t) => ({ header: t, key: `loi__${t}`, width: 14 })),
+        { header: 'Hư còn lại', key: 'chua_phan_loai', width: 16 },
       ],
-      rows: result.rows,
+      rows,
     });
   })
 );

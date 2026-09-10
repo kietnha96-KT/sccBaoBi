@@ -46,7 +46,11 @@ CREATE TABLE LoaiLoi (
     id              SERIAL PRIMARY KEY,
     ma_vat_tu       VARCHAR(20) NOT NULL REFERENCES VatTu(ma_vat_tu),
     ten_loi         VARCHAR(200) NOT NULL,
-    la_loi_dac_biet BOOLEAN NOT NULL DEFAULT FALSE  -- TRUE = tong_lua không cộng vào "đã lựa" của lô, hiện tách riêng
+    la_loi_dac_biet BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = tong_lua không cộng vào "đã lựa" của lô, hiện tách riêng
+    -- mục đích dùng: 'gan_nhan' = gán nhãn lỗi chuẩn cho báo cáo (năng suất);
+    -- 'tach_hu_bo' = nhập số lượng hư bỏ chi tiết trong báo cáo; 'ca_hai' = cả hai.
+    muc_dich        VARCHAR(20) NOT NULL DEFAULT 'gan_nhan'
+                    CHECK (muc_dich IN ('gan_nhan', 'tach_hu_bo', 'ca_hai'))
 );
 
 CREATE INDEX idx_loailoi_ma_vat_tu ON LoaiLoi(ma_vat_tu);
@@ -86,6 +90,43 @@ CREATE TABLE BaoCao_NhanSu (
 
 CREATE INDEX idx_baocaonhansu_baocao_id ON BaoCao_NhanSu(baocao_id);
 CREATE INDEX idx_baocaonhansu_nhansu_id ON BaoCao_NhanSu(nhansu_id);
+
+-- 7. BẢNG CON: BÓC TÁCH SỐ LƯỢNG HƯ BỎ CỦA 1 BÁO CÁO THEO TỪNG LOẠI LỖI
+--    Lỗi lưu theo DÒNG, không thêm cột cho mỗi loại lỗi.
+--    Tổng so_luong của 1 báo cáo <= BaoCao.hu_bo (phần chênh lệch = "chưa phân loại").
+CREATE TABLE BaoCao_LoiChiTiet (
+    id          SERIAL PRIMARY KEY,
+    baocao_id   INTEGER NOT NULL REFERENCES BaoCao(id) ON DELETE CASCADE,
+    loai_loi_id INTEGER NOT NULL REFERENCES LoaiLoi(id),
+    so_luong    NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (so_luong >= 0),
+    UNIQUE (baocao_id, loai_loi_id)
+);
+
+CREATE INDEX idx_baocao_loichitiet_baocao_id ON BaoCao_LoiChiTiet(baocao_id);
+CREATE INDEX idx_baocao_loichitiet_loai_loi_id ON BaoCao_LoiChiTiet(loai_loi_id);
+
+-- 8. LƯU VẾT khi admin đổi mục đích 1 loại lỗi -> hệ thống dọn dữ liệu liên quan.
+--    Thuần ghi lại để tra cứu + nhập lại thủ công. Không FK, không cascade, không undo.
+--    loai = 'chi_tiet_hu_bo' (xóa 1 dòng BaoCao_LoiChiTiet) | 'nhan_loi_chuan' (gỡ loi_chuan_id).
+CREATE TABLE BaoCao_Loi_LichSuXoa (
+    id           SERIAL PRIMARY KEY,
+    loai         VARCHAR(20) NOT NULL,
+    baocao_id    INTEGER NOT NULL,
+    lo_id        INTEGER,
+    so_lo        VARCHAR(50),
+    hu_bo_goc    NUMERIC(12,2),
+    loai_loi_id  INTEGER,
+    ten_loi      VARCHAR(200),
+    so_luong     NUMERIC(12,2),
+    ly_do        VARCHAR(40) NOT NULL DEFAULT 'doi_muc_dich_loai_loi',
+    xoa_luc      TIMESTAMP NOT NULL DEFAULT NOW(),
+    xoa_boi_id   INTEGER,
+    xoa_boi_ten  VARCHAR(100)
+);
+
+CREATE INDEX idx_lichsuxoa_baocao_id ON BaoCao_Loi_LichSuXoa(baocao_id);
+CREATE INDEX idx_lichsuxoa_loai_loi_id ON BaoCao_Loi_LichSuXoa(loai_loi_id);
+CREATE INDEX idx_lichsuxoa_xoa_luc ON BaoCao_Loi_LichSuXoa(xoa_luc);
 
 -- ============================================
 -- GHI CHÚ CÔNG THỨC NĂNG SUẤT (dùng khi viết query dashboard):

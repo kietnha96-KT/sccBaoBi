@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
-import { listLoaiLoi, createLoaiLoi, updateLoaiLoi, deleteLoaiLoi } from '../api/loailoiApi';
+import {
+  listLoaiLoi,
+  createLoaiLoi,
+  updateLoaiLoi,
+  deleteLoaiLoi,
+  loaiLoiTacDong,
+} from '../api/loailoiApi';
 import { listVatTu } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
+import { formatSoLuong } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
 import Alert from '../components/Alert';
@@ -12,6 +19,12 @@ import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
+
+// Mục đích dùng của loại lỗi:
+//  - gan_nhan  : chỉ để gán nhãn lỗi chuẩn cho báo cáo (phân tích năng suất)
+//  - tach_hu_bo: chỉ để nhập số lượng hư bỏ chi tiết trong báo cáo
+//  - ca_hai    : dùng cho cả hai
+const MUC_DICH_LABEL = { gan_nhan: 'Gán nhãn', tach_hu_bo: 'Tách hư bỏ', ca_hai: 'Cả hai' };
 
 export default function LoaiLoiPage() {
   const [page, setPage] = useState(1);
@@ -36,25 +49,79 @@ export default function LoaiLoiPage() {
   }
 
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false });
+  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Số báo cáo bị ảnh hưởng nếu đổi mục đích loại lỗi đang sửa (nạp khi mở form sửa).
+  const [tacDong, setTacDong] = useState(null);
 
   function openCreate() {
-    setForm({ ma_vat_tu: maVatTuFilter || '', ten_loi: '', la_loi_dac_biet: false });
+    setForm({ ma_vat_tu: maVatTuFilter || '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
     setFormError('');
+    setTacDong(null);
     setModal('create');
   }
 
   function openEdit(row) {
-    setForm({ ma_vat_tu: row.ma_vat_tu, ten_loi: row.ten_loi, la_loi_dac_biet: !!row.la_loi_dac_biet });
+    setForm({
+      ma_vat_tu: row.ma_vat_tu,
+      ten_loi: row.ten_loi,
+      la_loi_dac_biet: !!row.la_loi_dac_biet,
+      // Lỗi đặc biệt luôn khóa mục đích = 'gan_nhan' (xem ghi chú ở ô chọn bên dưới).
+      muc_dich: row.la_loi_dac_biet ? 'gan_nhan' : row.muc_dich || 'gan_nhan',
+    });
     setFormError('');
+    setTacDong(null);
     setModal({ edit: row });
+    loaiLoiTacDong(row.id)
+      .then(setTacDong)
+      .catch(() => setTacDong(null));
   }
+
+  // Đổi mục đích loại lỗi -> hệ thống tự dọn dữ liệu. Mô tả hệ quả (dùng cho cảnh báo trong
+  // form và confirm khi lưu). Trả null nếu không có gì bị dọn.
+  function moTaHeQua() {
+    if (modal === 'create' || !tacDong) return null;
+    const ten = modal?.edit?.ten_loi || 'loại lỗi này';
+    if (form.muc_dich === 'gan_nhan' && tacDong.so_bao_cao_chi_tiet > 0) {
+      return {
+        kieu: 'xoa_chi_tiet',
+        soBaoCao: tacDong.so_bao_cao_chi_tiet,
+        tong: tacDong.tong_so_luong_chi_tiet,
+        tieuDe: 'Thao tác này sẽ XÓA HẾT dữ liệu hư bỏ chi tiết',
+        dong: [
+          `Đổi mục đích "${ten}" sang "Gán nhãn" sẽ xóa phần Hư bỏ chi tiết đã nhập ở ${tacDong.so_bao_cao_chi_tiet} báo cáo (tổng ${formatSoLuong(tacDong.tong_so_luong_chi_tiet)} sản phẩm).`,
+          'KHÔNG hoàn tác lại được.',
+        ],
+      };
+    }
+    if (form.muc_dich === 'tach_hu_bo' && tacDong.so_bao_cao_gan_nhan > 0) {
+      return {
+        kieu: 'go_nhan',
+        soBaoCao: tacDong.so_bao_cao_gan_nhan,
+        tieuDe: 'Thao tác này sẽ GỠ lỗi đã gán nhãn',
+        dong: [
+          `Đổi mục đích "${ten}" sang "Tách hư bỏ" sẽ gỡ lỗi đã gán nhãn này khỏi ${tacDong.so_bao_cao_gan_nhan} báo cáo.`,
+          'KHÔNG hoàn tác lại được.',
+        ],
+      };
+    }
+    return null;
+  }
+
+  const heQua = modal?.edit ? moTaHeQua() : null;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    if (heQua) {
+      const loi = ['⚠️  ' + heQua.tieuDe, '', ...heQua.dong, '', 'Bấm OK để tiếp tục, Cancel để giữ nguyên.'].join(
+        '\n'
+      );
+      if (!confirm(loi)) return;
+    }
+
     setSaving(true);
     try {
       if (modal === 'create') {
@@ -63,6 +130,7 @@ export default function LoaiLoiPage() {
         await updateLoaiLoi(modal.edit.id, {
           ten_loi: form.ten_loi,
           la_loi_dac_biet: form.la_loi_dac_biet,
+          muc_dich: form.muc_dich,
         });
       }
       setModal(null);
@@ -140,6 +208,7 @@ export default function LoaiLoiPage() {
                   <th>Mã vật tư</th>
                   <th>Tên vật tư</th>
                   <th>Tên lỗi</th>
+                  <th>Mục đích</th>
                   <th>Lỗi đặc biệt</th>
                 </tr>
               </thead>
@@ -149,6 +218,7 @@ export default function LoaiLoiPage() {
                     <td>{row.ma_vat_tu}</td>
                     <td><TruncatedText text={row.ten_vat_tu} /></td>
                     <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>
+                    <td>{MUC_DICH_LABEL[row.muc_dich] || row.muc_dich}</td>
                     <td>
                       {row.la_loi_dac_biet ? (
                         <span className="badge badge-warning">Đặc biệt</span>
@@ -160,7 +230,7 @@ export default function LoaiLoiPage() {
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="empty-state">
+                    <td colSpan={5} className="empty-state">
                       Chưa có loại lỗi nào
                     </td>
                   </tr>
@@ -176,6 +246,18 @@ export default function LoaiLoiPage() {
         <Modal title={modal === 'create' ? 'Thêm loại lỗi' : 'Sửa loại lỗi'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
+
+            {heQua && (
+              <div className="alert alert-warning">
+                <strong>⚠️ {heQua.tieuDe}</strong>
+                <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                  {heQua.dong.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="form-grid form-grid-1">
               <VatTuFilterFields
                 vatTuList={vatTuList}
@@ -189,11 +271,34 @@ export default function LoaiLoiPage() {
                 <input value={form.ten_loi} onChange={(e) => setForm({ ...form, ten_loi: e.target.value })} required />
               </div>
               <div className="field">
+                <label>Mục đích dùng</label>
+                <select
+                  value={form.muc_dich}
+                  onChange={(e) => setForm({ ...form, muc_dich: e.target.value })}
+                  disabled={form.la_loi_dac_biet}
+                >
+                  <option value="gan_nhan">Gán nhãn (lỗi chuẩn cho báo cáo)</option>
+                  <option value="tach_hu_bo">Tách hư bỏ (nhập số lượng chi tiết)</option>
+                  <option value="ca_hai">Cả hai</option>
+                </select>
+                <span className="field-hint">
+                  {form.la_loi_dac_biet
+                    ? 'Lỗi đặc biệt luôn khóa ở "Gán nhãn".'
+                    : '"Tách hư bỏ" / "Cả hai" sẽ hiện ô nhập số lượng trong form báo cáo xử lý.'}
+                </span>
+              </div>
+              <div className="field">
                 <label className="check-inline">
                   <input
                     type="checkbox"
                     checked={form.la_loi_dac_biet}
-                    onChange={(e) => setForm({ ...form, la_loi_dac_biet: e.target.checked })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        la_loi_dac_biet: e.target.checked,
+                        muc_dich: e.target.checked ? 'gan_nhan' : form.muc_dich,
+                      })
+                    }
                   />
                   Lỗi đặc biệt
                 </label>

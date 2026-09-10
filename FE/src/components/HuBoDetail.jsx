@@ -22,6 +22,11 @@ export default function HuBoDetail({ row, params }) {
     [row.lo_id, params.ma_vat_tu, params.ma_ncc, params.loi_chuan_id]
   );
   const list = data?.data || [];
+  const theoLoi = data?.theo_loi || [];
+  const tongHuBo = Number(row.tong_hu_bo) || 0;
+  const tongTheoLoi = theoLoi.reduce((s, x) => s + (Number(x.so_luong) || 0), 0);
+  const chuaPhanLoai = tongHuBo - tongTheoLoi;
+  const pctCua = (sl) => (tongHuBo > 0 ? `${formatSoThapPhan((Number(sl) / tongHuBo) * 100)}%` : '—');
 
   return (
     <div>
@@ -58,6 +63,48 @@ export default function HuBoDetail({ row, params }) {
       </div>
 
       <Alert>{error}</Alert>
+
+      {!loading && (
+        <div className="table-wrap mb-16">
+          <div className="field-hint mb-8">Hư bỏ theo loại lỗi</div>
+          {theoLoi.length === 0 ? (
+            <p className="field-hint m-0">Chưa tách chi tiết cho lô này.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Loại lỗi</th>
+                  <th>Số lượng</th>
+                  <th>% hư bỏ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {theoLoi.map((x) => (
+                  <tr key={x.loai_loi_id}>
+                    <td>{x.ten_loi}</td>
+                    <td>{formatSoLuong(x.so_luong)}</td>
+                    <td>{pctCua(x.so_luong)}</td>
+                  </tr>
+                ))}
+                {chuaPhanLoai > 0.001 && (
+                  <tr>
+                    <td>Còn lại</td>
+                    <td>{formatSoLuong(chuaPhanLoai)}</td>
+                    <td>{pctCua(chuaPhanLoai)}</td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Tổng</td>
+                  <td>{formatSoLuong(tongHuBo)}</td>
+                  <td>{tongHuBo > 0 ? '100%' : '—'}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      )}
 
       <div className="table-wrap">
         {loading ? (

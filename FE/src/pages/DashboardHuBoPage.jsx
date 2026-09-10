@@ -55,9 +55,13 @@ export default function DashboardHuBoPage() {
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
     : loData?.data || [];
-  const loaiLoiList = filters.ma_vat_tu
-    ? (loaiLoiData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
-    : loaiLoiData?.data || [];
+  // Bộ lọc "Loại lỗi (đã gán)" = lọc theo loi_chuan_id -> chỉ loại lỗi dùng để gán nhãn
+  // ('gan_nhan' | 'ca_hai'), bỏ loại chỉ để tách hư bỏ.
+  const loaiLoiList = (loaiLoiData?.data || []).filter(
+    (l) =>
+      l.muc_dich !== 'tach_hu_bo' &&
+      (!filters.ma_vat_tu || l.ma_vat_tu === filters.ma_vat_tu)
+  );
 
   function cleanParams(f) {
     const p = {};

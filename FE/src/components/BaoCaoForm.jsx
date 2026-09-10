@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getBaoCao, createBaoCao, updateBaoCao } from '../api/baocaoApi';
 import { listVatTu } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
+import { listLoaiLoi } from '../api/loailoiApi';
 import { listNhanSu } from '../api/nhansuApi';
 import { getErrorMessage } from '../api/client';
 import { formatSoLuong } from '../format';
@@ -86,6 +87,8 @@ const emptyForm = {
   la_lua_lai: false,
   ghi_chu: '',
   nhansu_ids: [],
+  // map { [loai_loi_id]: "chuoi so" } - hư bỏ chi tiết theo loại lỗi (chỉ vật tư có khai)
+  chi_tiet_loi: {},
 };
 
 // Form nhập/sửa 1 báo cáo. Dùng được cả trong trang riêng (BaoCaoFormPage) lẫn trong popup.
@@ -103,6 +106,18 @@ export default function BaoCaoForm({ id, onDone }) {
 
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
   const [loList, setLoList] = useState([]);
+
+  // Loại lỗi của vật tư đang chọn, lọc ra những lỗi cần nhập số lượng hư bỏ chi tiết.
+  const { data: loaiLoiResp } = useFetch(
+    () =>
+      maVatTuFilter
+        ? listLoaiLoi({ ma_vat_tu: maVatTuFilter, limit: ALL_LIMIT })
+        : Promise.resolve({ data: [] }),
+    [maVatTuFilter]
+  );
+  const breakdownLoiList = (loaiLoiResp?.data || []).filter(
+    (l) => l.muc_dich === 'tach_hu_bo' || l.muc_dich === 'ca_hai'
+  );
 
   const [form, setForm] = useState({
     ...emptyForm,
@@ -130,6 +145,9 @@ export default function BaoCaoForm({ id, onDone }) {
           la_lua_lai: bc.la_lua_lai,
           ghi_chu: bc.ghi_chu || '',
           nhansu_ids: bc.nhansu_tham_gia.map((n) => n.id),
+          chi_tiet_loi: Object.fromEntries(
+            (bc.chi_tiet_loi || []).map((x) => [x.loai_loi_id, String(Math.trunc(Number(x.so_luong) || 0))])
+          ),
         });
         setMaVatTuFilter(bc.ma_vat_tu);
         if (!bc.co_the_sua_xoa_hom_nay && !isAdmin) {
@@ -146,6 +164,17 @@ export default function BaoCaoForm({ id, onDone }) {
   }, [maVatTuFilter]);
 
   const selectedLo = loList.find((l) => l.id === Number(form.lo_id)) || null;
+
+  const sumChiTiet = breakdownLoiList.reduce(
+    (s, l) => s + (Number(form.chi_tiet_loi[l.id]) || 0),
+    0
+  );
+  const huBoNum = Number(form.hu_bo) || 0;
+  const chiTietVuot = sumChiTiet > huBoNum;
+
+  function setChiTietLoi(id, val) {
+    setForm((f) => ({ ...f, chi_tiet_loi: { ...f.chi_tiet_loi, [id]: val } }));
+  }
 
   function toggleNhanSu(nsId) {
     setForm((f) => ({
@@ -177,6 +206,12 @@ export default function BaoCaoForm({ id, onDone }) {
       setError('Phải nhập số lượng Hư bỏ');
       return;
     }
+    if (chiTietVuot) {
+      setError(
+        `Tổng hư bỏ chi tiết (${formatSoLuong(sumChiTiet)}) vượt quá Hư bỏ (${formatSoLuong(huBoNum)}). Hãy tăng Hư bỏ hoặc giảm các ô chi tiết.`
+      );
+      return;
+    }
     if (!form.loi_nguoi_dung.trim()) {
       setError('Phải nhập Lỗi');
       return;
@@ -201,6 +236,9 @@ export default function BaoCaoForm({ id, onDone }) {
         hu_bo: Number(form.hu_bo),
         tg_bat_dau: form.tg_bat_dau.trim() || null,
         tg_ket_thuc: form.tg_ket_thuc.trim() || null,
+        chi_tiet_loi: breakdownLoiList
+          .map((l) => ({ loai_loi_id: l.id, so_luong: Number(form.chi_tiet_loi[l.id]) || 0 }))
+          .filter((x) => x.so_luong > 0),
       };
       if (isEdit) {
         await updateBaoCao(id, payload);
@@ -242,7 +280,7 @@ export default function BaoCaoForm({ id, onDone }) {
           value={maVatTuFilter}
           onChange={(v) => {
             setMaVatTuFilter(v);
-            setForm({ ...form, lo_id: '' });
+            setForm({ ...form, lo_id: '', chi_tiet_loi: {} });
           }}
           vatTuPlaceholder="Gõ mã hoặc tên vật tư để lọc lô..."
           disabled={disabled}
@@ -300,6 +338,42 @@ export default function BaoCaoForm({ id, onDone }) {
           <label>Tổng lựa</label>
           <input value={formatSoLuong((Number(form.dat) || 0) + (Number(form.hu_bo) || 0))} disabled />
         </div>
+
+        {breakdownLoiList.length > 0 && (
+          <div className="breakdown-box" style={{ gridColumn: '1 / -1' }}>
+            <div className="breakdown-box-head">
+              <span className="breakdown-box-title">Chi tiết hư bỏ theo loại lỗi</span>
+              <span className="field-hint">
+                - Không bắt buộc nhập hết
+              </span>
+            </div>
+            <div className="form-grid">
+              {breakdownLoiList.map((l) => (
+                <div className="field" key={l.id}>
+                  <label>{l.ten_loi}</label>
+                  <NumberInput
+                    value={form.chi_tiet_loi[l.id] || ''}
+                    onChange={(v) => setChiTietLoi(l.id, v)}
+                    disabled={disabled}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className={`breakdown-box-foot${chiTietVuot ? ' is-error' : ''}`}>
+              {chiTietVuot ? (
+                <>
+                  Đã tách <strong>{formatSoLuong(sumChiTiet)}</strong> — vượt quá Hư bỏ{' '}
+                  {formatSoLuong(huBoNum)}, hãy chỉnh lại
+                </>
+              ) : (
+                <>
+                  Đã tách <strong>{formatSoLuong(sumChiTiet)}</strong> / {formatSoLuong(huBoNum)}
+                  {' · '}Còn lại: <strong>{formatSoLuong(huBoNum - sumChiTiet)}</strong>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         <TimeSelect
           label="Giờ bắt đầu (24 giờ)"

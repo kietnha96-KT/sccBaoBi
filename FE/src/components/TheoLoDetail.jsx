@@ -1,5 +1,5 @@
 import { dashboardTheoLoChiTiet } from '../api/dashboardApi';
-import { formatSoLuong, formatSoThapPhan } from '../format';
+import { formatSoLuong } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import Alert from './Alert';
 import TruncatedText from './TruncatedText';
@@ -78,7 +78,6 @@ export default function TheoLoDetail({ row }) {
                 <th>Đạt</th>
                 <th>Hư bỏ</th>
                 <th>Tổng lựa</th>
-                <th>NS 8h</th>
               </tr>
             </thead>
             <tbody>
@@ -96,12 +95,11 @@ export default function TheoLoDetail({ row }) {
                   <td>{formatSoLuong(r.dat)}</td>
                   <td>{formatSoLuong(r.hu_bo)}</td>
                   <td>{formatSoLuong(r.tong_lua)}</td>
-                  <td>{r.nang_suat_8h == null ? '—' : formatSoThapPhan(r.nang_suat_8h)}</td>
                 </tr>
               ))}
               {list.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty-state">Không có báo cáo</td>
+                  <td colSpan={6} className="empty-state">Không có báo cáo</td>
                 </tr>
               )}
             </tbody>
