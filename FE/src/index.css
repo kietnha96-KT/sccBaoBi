@@ -279,7 +279,7 @@ a {
    ghim/rê chuột (mobile ghi đè thành fixed drawer, luôn hiện đầy đủ - xem media query cuối file). */
 @media (min-width: 901px) {
   .sidebar {
-    transition: width 0.18s ease;
+    transition: width 0.22s ease-out;
   }
 
   .sidebar.pinned {
@@ -297,13 +297,21 @@ a {
     left: 0;
     width: var(--sidebar-collapsed-width);
     z-index: 45;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+    /* Chỉ animate đúng 1 thuộc tính (width), đường cong "ease-out" dựng sẵn của trình duyệt
+       (KHÔNG dùng cubic-bezier tự chế + contain:layout nữa - tổ hợp đó gây phình 1 khung hình
+       lúc thu lại, kiểu "nhá layer" khi trình duyệt promote/demote lớp GPU giữa chừng).
+       Không animate chung với box-shadow (đỡ phải tính lại bóng đổ mỗi khung hình). */
+    will-change: width;
+    transition: width 0.3s ease-out;
+  }
+
+  .sidebar-panel:not(.expanded) {
     box-shadow: none;
-    transition: width 0.18s ease, box-shadow 0.18s ease;
   }
 
   .sidebar-panel.expanded {
     width: var(--sidebar-width);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
   }
 
   /* Đã ghim: panel trở thành phần tử layout thật trong dòng chảy (đẩy nội dung),
@@ -317,16 +325,33 @@ a {
     display: none;
   }
 
-  .sidebar-panel:not(.expanded) .sidebar-brand-row {
-    padding-left: 0;
-    padding-right: 0;
-    justify-content: center;
+  /* TUYỆT ĐỐI không dùng justify-content:center / margin:auto cho trạng thái thu gọn.
+     Lý do: lúc thả hover, class .expanded bị gỡ NGAY trong khi bề ngang còn đang co dần
+     240px -> 68px. Nếu canh giữa, icon sẽ bị canh giữa theo bề ngang TỨC THỜI (còn 240px)
+     nên vọt sang phải ~76px trong 1 khung hình rồi mới trượt ngược về -> "giật ra rồi thu lại".
+     Cách làm: canh TRÁI ở cả 2 trạng thái, chỉ đổi padding-left (số cố định, không phụ thuộc
+     bề ngang) sao cho nhìn vẫn cân giữa trong thanh 68px, và cho nó trượt cùng nhịp với width. */
+  .sidebar-brand-row,
+  .sidebar-footer,
+  .sidebar-link {
+    transition: padding-left 0.2s ease-out;
   }
 
+  .sidebar-pin-btn {
+    transition: width 0.2s ease-out, margin-left 0.2s ease-out;
+  }
+
+  /* 18px = (68 - 32) / 2, canh giữa dấu hiệu logo 32px trong thanh 68px */
+  .sidebar-panel:not(.expanded) .sidebar-brand-row {
+    padding-left: 18px;
+    padding-right: 0;
+  }
+
+  /* 19px = (68 - 30) / 2, canh giữa nút ghim 30px */
   .sidebar-panel:not(.expanded) .sidebar-pin-btn {
     width: 30px;
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: 19px;
+    margin-right: 0;
     padding: 0;
     justify-content: center;
   }
@@ -341,16 +366,15 @@ a {
     border-top-color: rgba(255, 255, 255, 0.12);
   }
 
+  /* 22px: icon 18px nằm sau viền trái 3px -> tâm icon = 3 + 22 + 9 = 34 = giữa thanh 68px */
   .sidebar-panel:not(.expanded) .sidebar-link {
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 22px;
   }
 
+  /* 18px = (68 - 32) / 2, canh giữa ảnh đại diện 32px */
   .sidebar-panel:not(.expanded) .sidebar-footer {
-    padding-left: 0;
+    padding-left: 18px;
     padding-right: 0;
-    justify-content: center;
   }
 }
 
