@@ -17,6 +17,8 @@
   --sidebar-active: #1f2937;
   --row-hover-bg: #eef1f5;
   --row-selected-bg: #d4e4ff;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 68px;
   --radius: 8px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -52,66 +54,173 @@ a {
   min-height: 100vh;
 }
 
+/* Sidebar dạng mini-variant: ".sidebar" (ngoài) chỉ giữ chỗ trong layout flex -
+   mặc định rộng bằng bề ngang thu gọn; ".sidebar-panel" (trong) là phần nhìn thấy được,
+   khi rê chuột vào (chưa ghim) sẽ "nổi" đè lên nội dung (position: fixed) thay vì
+   đẩy layout, để không giật nội dung mỗi lần lướt qua. Khi đã ghim thì mở rộng thật sự.
+   KHÔNG đặt align-self:flex-start ở đây - phải để ".sidebar" tự giãn theo chiều cao
+   thật của trang (mặc định flex stretch) thì ".sidebar-panel.pinned" (position:sticky)
+   mới có đủ "đường ray" để dính lại khi cuộn trang dài; nếu không nó chỉ dính được đúng
+   1 màn hình đầu rồi cuộn trôi mất (vì khi đó ".sidebar" bị co lại bằng đúng 100vh). */
 .sidebar {
-  width: 240px;
+  position: relative;
+  width: var(--sidebar-collapsed-width);
   flex-shrink: 0;
+}
+
+/* Mọi chữ ẩn/hiện theo trạng thái thu gọn dùng class này - LUÔN 1 dòng, không cho xuống
+   dòng. Thiếu dòng này thì lúc panel đang giãn bề ngang dần (chưa đủ chỗ), chữ dài sẽ bị
+   xuống dòng tạm rồi bật lại thành 1 dòng khi đủ chỗ -> nhìn như chớp giật. */
+.sidebar-text {
+  white-space: nowrap;
+  overflow: hidden;
+  /* Cho phép co lại nhỏ hơn bề rộng tự nhiên của chữ khi nằm trong hàng flex (nút ghim...) -
+     nếu không, mặc định flex item không co dưới kích thước nội dung -> chữ vẫn tự tràn ra
+     ngoài lúc panel còn hẹp, dù đã overflow:hidden. */
+  min-width: 0;
+}
+
+.sidebar-panel {
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
   padding: 16px 0;
-  /* Desktop: khóa sidebar tại chỗ khi cuộn nội dung dài (mobile ghi đè thành fixed drawer) */
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
-  height: 100vh;
-  overflow-y: auto;
 }
 
 .sidebar-brand {
-  padding: 8px 20px 20px;
-  font-weight: 700;
-  font-size: 16px;
-  color: #fff;
+  padding: 8px 0 16px;
   border-bottom: 1px solid #1f2937;
   margin-bottom: 12px;
 }
 
-.sidebar-brand small {
+/* Chiều cao CỐ ĐỊNH ở cả 2 trạng thái (thu gọn / mở rộng) -> khi hover mở ra chỉ có bề
+   ngang đổi, không có gì bị đẩy lên xuống. Đây là mấu chốt để không thấy "giật cục". */
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 20px;
+}
+
+.sidebar-brand-mark {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.sidebar-brand-text {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 18px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.sidebar-brand-text small {
   display: block;
   font-weight: 400;
   color: var(--sidebar-text);
   font-size: 12px;
+  line-height: 14px;
   margin-top: 2px;
+  white-space: nowrap;
 }
 
-/* Đầu mục CẤP 1 (nhóm): có đường kẻ + khoảng cách phía trên, chữ hoa nhỏ, đậm nhẹ. */
+/* Nút ghim/bỏ ghim - LUÔN hiện (kể cả lúc thu gọn), để không cần rê chuột mới bấm được. */
+.sidebar-pin-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 40px);
+  height: 30px;
+  margin: 10px 20px 0;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sidebar-pin-btn:hover {
+  background: var(--sidebar-active);
+  color: #fff;
+}
+
+.sidebar-pin-btn[aria-pressed='true'] {
+  background: var(--sidebar-active);
+  color: #fff;
+  border-color: transparent;
+}
+
+.sidebar-pin-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+  transform: rotate(40deg);
+}
+
+.sidebar-pin-icon.is-pinned {
+  transform: rotate(0deg);
+}
+
+/* Đầu mục CẤP 1 (nhóm): có đường kẻ + khoảng cách phía trên, chữ hoa nhỏ, đậm nhẹ.
+   Chiều cao cố định -> lúc thu gọn chỉ còn thấy đường kẻ phân nhóm, nhưng KHÔNG đổi
+   chiều cao khi mở rộng (nếu ép height:0 lúc thu gọn thì menu sẽ bị tụt xuống khi hover). */
 .sidebar-section {
-  margin-top: 16px;
-  padding: 12px 20px 6px;
+  height: 30px;
+  margin-top: 12px;
+  padding: 10px 20px 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 11px;
+  line-height: 15px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #7c8798;
+  white-space: nowrap;
 }
 
 .sidebar-section:first-child {
   margin-top: 0;
   border-top: 0;
-  padding-top: 4px;
 }
 
 /* Mục CẤP 2 (link): thụt vào sâu hơn tiêu đề nhóm để thấy rõ phân cấp.
    Màu / hover / trạng thái active giữ NGUYÊN như cũ. */
 .sidebar-link {
-  display: block;
-  padding: 9px 20px 9px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 20px 0 32px;
   color: var(--sidebar-text);
   text-decoration: none;
   font-size: 14px;
+  white-space: nowrap;
   border-left: 3px solid transparent;
+}
+
+.sidebar-link-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 /* Chỉ áp hiệu ứng hover trên thiết bị có chuột thật -> tránh "dính hover"
@@ -131,20 +240,118 @@ a {
 
 .sidebar-footer {
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px 20px;
   border-top: 1px solid #1f2937;
+  font-size: 13px;
+}
+
+.sidebar-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--sidebar-active);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
   font-size: 13px;
 }
 
 .sidebar-user {
   color: #fff;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .sidebar-role {
   color: var(--sidebar-text);
   font-size: 12px;
   text-transform: capitalize;
+  white-space: nowrap;
+}
+
+/* Desktop: sidebar khóa tại chỗ khi cuộn nội dung dài, thu gọn/mở rộng theo trạng thái
+   ghim/rê chuột (mobile ghi đè thành fixed drawer, luôn hiện đầy đủ - xem media query cuối file). */
+@media (min-width: 901px) {
+  .sidebar {
+    transition: width 0.18s ease;
+  }
+
+  .sidebar.pinned {
+    width: var(--sidebar-width);
+  }
+
+  /* Chưa ghim: panel LUÔN position:fixed (kể cả lúc thu gọn không hover) - chỉ có
+     "width" đổi khi rê chuột vào/ra. Giữ "position" không đổi suốt lúc hover là mấu chốt
+     để trình duyệt animate mượt (đổi position giữa chừng làm transition bị giật/nhảy khựng).
+     PHẢI là "fixed" (theo khung nhìn), không phải "absolute" (theo phần tử cha đang cuộn
+     theo trang) - nếu không sidebar sẽ cuộn trôi theo nội dung thay vì đứng yên. */
+  .sidebar-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-collapsed-width);
+    z-index: 45;
+    box-shadow: none;
+    transition: width 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .sidebar-panel.expanded {
+    width: var(--sidebar-width);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+  }
+
+  /* Đã ghim: panel trở thành phần tử layout thật trong dòng chảy (đẩy nội dung),
+     khớp với ".sidebar.pinned" đã tự chiếm đủ chỗ ở trên. */
+  .sidebar-panel.pinned {
+    position: sticky;
+    box-shadow: none;
+  }
+
+  .sidebar-panel:not(.expanded) .sidebar-text {
+    display: none;
+  }
+
+  .sidebar-panel:not(.expanded) .sidebar-brand-row {
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+  }
+
+  .sidebar-panel:not(.expanded) .sidebar-pin-btn {
+    width: 30px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* CHỈ đổi theo chiều ngang (thu ngắn đường kẻ lại) - tuyệt đối không đụng
+     height / margin-top / padding dọc, nếu không menu sẽ nhảy khi mở rộng. */
+  .sidebar-panel:not(.expanded) .sidebar-section {
+    margin-left: 14px;
+    margin-right: 14px;
+    padding-left: 0;
+    padding-right: 0;
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .sidebar-panel:not(.expanded) .sidebar-link {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .sidebar-panel:not(.expanded) .sidebar-footer {
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+  }
 }
 
 .main-area {
