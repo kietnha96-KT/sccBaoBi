@@ -204,9 +204,10 @@ function normalizeGioLamViec(tg_bat_dau, tg_ket_thuc) {
 // Chuẩn hóa danh sách "hư bỏ chi tiết theo loại lỗi": [{ loai_loi_id, so_luong }].
 // - bỏ dòng so_luong <= 0 hoặc thiếu loai_loi_id
 // - gộp trùng loai_loi_id lại
-// - tổng so_luong không được vượt hu_bo (phần chênh lệch = "chưa phân loại")
+// KHÔNG ràng buộc tổng so_luong với hu_bo - đây là ô nhập tự do, thuần lưu thông tin,
+// người dùng tự quản (không bắt buộc khớp, không tự suy ra "chưa phân loại").
 // Kiểm tra loai_loi_id có thuộc vật tư của lô + đúng muc_dich làm ở trong transaction.
-function parseChiTietLoi(raw, huBo) {
+function parseChiTietLoi(raw) {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw)) throw new AppError(400, 'chi_tiet_loi phải là mảng');
 
@@ -222,15 +223,7 @@ function parseChiTietLoi(raw, huBo) {
     theoId.set(id, (theoId.get(id) || 0) + sl);
   }
 
-  const list = [...theoId.entries()].map(([loai_loi_id, so_luong]) => ({ loai_loi_id, so_luong }));
-  const tong = list.reduce((s, x) => s + x.so_luong, 0);
-  if (tong > Number(huBo) + 1e-6) {
-    throw new AppError(
-      400,
-      `Tổng hư bỏ chi tiết (${tong}) vượt quá số Hư bỏ (${Number(huBo)}). Hãy tăng Hư bỏ hoặc giảm các ô chi tiết.`
-    );
-  }
-  return list;
+  return [...theoId.entries()].map(([loai_loi_id, so_luong]) => ({ loai_loi_id, so_luong }));
 }
 
 // Kiểm tra mọi loai_loi_id trong danh sách chi tiết đều thuộc vật tư của lô và có
@@ -284,7 +277,7 @@ function parseReportBody(body) {
     la_lua_lai: !!la_lua_lai,
     ghi_chu: ghi_chu || null,
     nhansu_ids: [...new Set(nhansu_ids.map(Number))],
-    chi_tiet_loi: parseChiTietLoi(body.chi_tiet_loi, hu_bo ?? 0),
+    chi_tiet_loi: parseChiTietLoi(body.chi_tiet_loi),
   };
 }
 

@@ -9,6 +9,13 @@ export function formatSoLuong(value) {
   return Math.round(n).toLocaleString('vi-VN');
 }
 
+// Ngày hôm nay theo giờ máy người dùng (KHÔNG dùng toISOString vì đó là giờ UTC,
+// nửa đêm ở VN sẽ ra ngày hôm trước). Trả về chuỗi "YYYY-MM-DD".
+export function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Mặc định cho bộ lọc "khoảng ngày" ở mọi trang: trọn tháng hiện tại theo giờ máy người dùng.
 // Trả về chuỗi "YYYY-MM-DD" để gán thẳng vào <input type="date">.
 export function firstDayOfThisMonth() {

@@ -18,3 +18,5 @@ export const dashboardHuBo = (params) =>
   client.get('/dashboard/hu-bo', { params }).then((r) => r.data);
 export const dashboardHuBoChiTiet = (params) =>
   client.get('/dashboard/hu-bo/chi-tiet', { params }).then((r) => r.data);
+export const dashboardGioLamNgay = (params) =>
+  client.get('/dashboard/gio-lam-ngay', { params }).then((r) => r.data);

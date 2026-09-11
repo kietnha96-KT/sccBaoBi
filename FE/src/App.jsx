@@ -17,6 +17,7 @@ import DashboardVatTuPage from './pages/DashboardVatTuPage';
 import DashboardLoPage from './pages/DashboardLoPage';
 import DashboardBaoCongLoPage from './pages/DashboardBaoCongLoPage';
 import DashboardHuBoPage from './pages/DashboardHuBoPage';
+import DashboardGioLamNgayPage from './pages/DashboardGioLamNgayPage';
 
 function App() {
   return (
@@ -71,6 +72,15 @@ function App() {
               element={
                 <ProtectedRoute staffOnly>
                   <DashboardHuBoPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/gio-lam-ngay"
+              element={
+                <ProtectedRoute staffOnly>
+                  <DashboardGioLamNgayPage />
                 </ProtectedRoute>
               }
             />

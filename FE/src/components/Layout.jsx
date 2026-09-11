@@ -20,6 +20,7 @@ const ICON_PATHS = {
   archive: 'M21 8v13H3V8 M1 3h22v5H1z M10 12h4',
   tag: 'M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z M7 7h.01',
   truck: 'M1 3h15v13H1z M16 8h4l3 3v5h-7V8Z M5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  calendar: 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18',
 };
 
 function Icon({ name }) {
@@ -50,6 +51,7 @@ function PinIcon({ pinned }) {
 const NAV_MAIN = [{ to: '/baocao/moi', icon: 'edit', label: 'Nhập mới' }];
 const NAV_BAOCAO = [{ to: '/baocao', end: true, icon: 'file', label: 'Báo cáo xử lý hàng' }];
 const NAV_DASHBOARD = [
+  { to: '/dashboard/gio-lam-ngay', icon: 'calendar', label: 'Giờ làm trong ngày' },
   { to: '/dashboard/nhan-su', icon: 'users', label: 'Năng suất theo nhân sự' },
   { to: '/dashboard/vat-tu', icon: 'box', label: 'Năng suất theo vật tư' },
   { to: '/dashboard/lo', icon: 'layers', label: 'Tiến độ theo lô' },

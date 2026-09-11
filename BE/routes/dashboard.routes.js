@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
+const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { BC_CALC_CTE } = require('../utils/productivity');
@@ -764,7 +765,8 @@ router.get(
 
     // Gom breakdown theo lô: byLo[lo_id] = { [ten_loi]: so_luong }. Cột "chi tiết" là
     // ĐỘNG - mỗi loại lỗi (theo tên) xuất hiện trong bộ lọc là 1 cột. Lô nào vật tư không
-    // có lỗi đó thì ô trống. Thêm cột "Chưa phân loại" = Tổng hư bỏ - tổng các cột lỗi.
+    // có lỗi đó thì ô trống. Đây thuần là THỐNG KÊ lỗi đi kèm, không đối chiếu với
+    // "Tổng hư bỏ" (không có cột "chưa phân loại" / "còn lại").
     const byLo = new Map();
     const tenLoiSet = new Set();
     for (const r of bdResult.rows) {
@@ -777,14 +779,9 @@ router.get(
     const rows = result.rows.map((row) => {
       const map = byLo.get(row.lo_id) || {};
       const out = { ...row };
-      let tongBd = 0;
       for (const t of tenLoiList) {
-        if (map[t] != null) {
-          out[`loi__${t}`] = map[t];
-          tongBd += map[t];
-        }
+        if (map[t] != null) out[`loi__${t}`] = map[t];
       }
-      out.chua_phan_loai = Math.max(0, Number(row.tong_hu_bo || 0) - tongBd);
       return out;
     });
 
@@ -802,10 +799,44 @@ router.get(
         { header: 'Tổng lựa', key: 'tong_lua', width: 14 },
         { header: 'Tỷ lệ hư bỏ (%)', key: 'ty_le_hu_bo_pct', width: 16 },
         ...tenLoiList.map((t) => ({ header: t, key: `loi__${t}`, width: 14 })),
-        { header: 'Hư còn lại', key: 'chua_phan_loai', width: 16 },
       ],
       rows,
     });
+  })
+);
+
+// ================= 7. GIỜ LÀM NHÂN SỰ TRONG NGÀY =================
+// Xem nhanh 1 ngày: mỗi nhân sự làm từ giờ nào tới giờ nào, suy ra từ các báo cáo họ tham
+// gia hôm đó. CHỈ để xem nhanh nhịp làm việc, KHÔNG PHẢI chấm công chính thức: giờ lấy từ
+// báo cáo tự nhập SAU KHI xong việc (không phải quẹt thẻ lúc vào/ra), ô giờ được phép để
+// trống, và khoảng trống giữa 2 báo cáo trong ngày không chắc là nghỉ (xem chi tiết từng
+// báo cáo ở FE mới thấy rõ). Tính cả báo cáo lựa lại (khác các dashboard năng suất/hư bỏ)
+// vì ở đây quan tâm "có mặt làm việc", không phải chỉ số chất lượng.
+function buildGioLamNgayQuery(query) {
+  const sql = `
+    SELECT
+      ns.id AS nhansu_id, ns.ho_ten,
+      MIN(bc.tg_bat_dau) AS gio_vao,
+      MAX(bc.tg_ket_thuc) AS gio_ra,
+      COUNT(bc.id) AS so_bao_cao
+    FROM NhanSu ns
+    LEFT JOIN BaoCao_NhanSu bn ON bn.nhansu_id = ns.id
+    LEFT JOIN BaoCao bc ON bc.id = bn.baocao_id AND bc.ngay = $1
+    WHERE ns.vai_tro = 'nhan_vien'
+    GROUP BY ns.id, ns.ho_ten
+    ORDER BY ns.ho_ten ASC
+  `;
+  return { sql, params: [query.ngay] };
+}
+
+router.get(
+  '/gio-lam-ngay',
+  requireStaff,
+  asyncHandler(async (req, res) => {
+    if (!req.query.ngay) throw new AppError(400, 'Thiếu ngày');
+    const { sql, params } = buildGioLamNgayQuery(req.query);
+    const result = await pool.query(sql, params);
+    res.json({ data: result.rows });
   })
 );
 

@@ -169,9 +169,6 @@ export default function BaoCaoForm({ id, onDone }) {
     (s, l) => s + (Number(form.chi_tiet_loi[l.id]) || 0),
     0
   );
-  const huBoNum = Number(form.hu_bo) || 0;
-  const chiTietVuot = sumChiTiet > huBoNum;
-
   function setChiTietLoi(id, val) {
     setForm((f) => ({ ...f, chi_tiet_loi: { ...f.chi_tiet_loi, [id]: val } }));
   }
@@ -204,12 +201,6 @@ export default function BaoCaoForm({ id, onDone }) {
     }
     if (form.hu_bo === '' || form.hu_bo === null) {
       setError('Phải nhập số lượng Hư bỏ');
-      return;
-    }
-    if (chiTietVuot) {
-      setError(
-        `Tổng hư bỏ chi tiết (${formatSoLuong(sumChiTiet)}) vượt quá Hư bỏ (${formatSoLuong(huBoNum)}). Hãy tăng Hư bỏ hoặc giảm các ô chi tiết.`
-      );
       return;
     }
     if (!form.loi_nguoi_dung.trim()) {
@@ -342,7 +333,7 @@ export default function BaoCaoForm({ id, onDone }) {
         {breakdownLoiList.length > 0 && (
           <div className="breakdown-box" style={{ gridColumn: '1 / -1' }}>
             <div className="breakdown-box-head">
-              <span className="breakdown-box-title">Chi tiết hư bỏ theo loại lỗi</span>
+              <span className="breakdown-box-title">Chi tiết theo loại lỗi</span>
               <span className="field-hint">
                 - Không bắt buộc nhập hết
               </span>
@@ -359,18 +350,18 @@ export default function BaoCaoForm({ id, onDone }) {
                 </div>
               ))}
             </div>
-            <div className={`breakdown-box-foot${chiTietVuot ? ' is-error' : ''}`}>
-              {chiTietVuot ? (
-                <>
-                  Đã tách <strong>{formatSoLuong(sumChiTiet)}</strong> — vượt quá Hư bỏ{' '}
-                  {formatSoLuong(huBoNum)}, hãy chỉnh lại
-                </>
-              ) : (
-                <>
-                  Đã tách <strong>{formatSoLuong(sumChiTiet)}</strong> / {formatSoLuong(huBoNum)}
-                  {' · '}Còn lại: <strong>{formatSoLuong(huBoNum - sumChiTiet)}</strong>
-                </>
-              )}
+            <div className="breakdown-box-foot">
+              {breakdownLoiList
+                .filter((l) => Number(form.chi_tiet_loi[l.id]) > 0)
+                .map((l, index) => (
+                  <span key={l.id}>
+                    {index > 0 && " / "}
+                    {l.ten_loi}: <strong>{formatSoLuong(form.chi_tiet_loi[l.id])}</strong>
+                  </span>
+                ))}
+              <div className="mt-8">
+                Tổng: <strong>{formatSoLuong(sumChiTiet)}</strong>
+              </div>
             </div>
           </div>
         )}

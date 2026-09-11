@@ -67,7 +67,7 @@ export default function BaoCaoListPage() {
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const loaiLoiList = loaiLoiData?.data;
-  const nhanSuList = nhanSuData?.data;
+  const nhanSuList = (nhanSuData?.data || []).filter((ns) => ns.vai_tro === 'nhan_vien');
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
     : loData?.data || [];
