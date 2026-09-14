@@ -7,12 +7,23 @@ const { Pool, types } = require('pg');
 // bị lùi 1 (vd 2026-08-31 -> "2026-08-30T17:00:00Z"). Giữ nguyên chuỗi là an toàn nhất.
 types.setTypeParser(1082, (v) => v);
 
+// Ép idle timeout ngắn + KHÔNG giữ connection tối thiểu nào -> pool tự đóng hết connection
+// vật lý khi rảnh, để compute Neon (serverless, tính giờ compute) tự "ngủ" được.
+// (Đây vốn đã là default của thư viện pg - ghi tường minh ra để không ai lỡ thêm
+//  "min: 1" hay tăng idleTimeoutMillis rồi vô tình làm connection treo, khiến Neon
+//  không bao giờ suspend compute -> ăn hết giờ compute của gói free.)
+const POOL_KEEP_IDLE_SHORT = {
+  min: 0,
+  idleTimeoutMillis: 10000, // 10s không dùng -> đóng connection
+};
+
 // Ưu tiên DATABASE_URL (chuẩn connection string mà Render/Neon/Supabase... cung cấp).
 // Không có thì dùng các biến DB_* riêng lẻ (phù hợp chạy local).
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
+      ...POOL_KEEP_IDLE_SHORT,
     })
   : new Pool({
       user: process.env.DB_USER,
@@ -20,6 +31,7 @@ const pool = process.env.DATABASE_URL
       host: process.env.DB_HOST,
       port: process.env.DB_PORT,
       database: process.env.DB_NAME,
+      ...POOL_KEEP_IDLE_SHORT,
     });
 
 // Ép search_path = public trên MỌI connection vật lý mới của pool. Cần thiết cho Neon:

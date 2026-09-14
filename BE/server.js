@@ -27,6 +27,13 @@ app.use(cors({ origin: corsOrigins.length ? corsOrigins : true }));
 
 app.use(express.json());
 
+// Health check cho Render - CỐ Ý không đụng DB (không query gì cả). Nếu để Render dí
+// route có query DB theo chu kỳ, Neon sẽ không bao giờ thấy hết connection để tự
+// suspend compute -> ăn hết giờ compute của gói free dù app không ai dùng.
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
+});
+
 // API test: kiểm tra kết nối database có thành công không
 app.get('/api/test-db', async (req, res) => {
   try {
