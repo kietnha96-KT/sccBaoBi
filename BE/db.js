@@ -22,4 +22,15 @@ const pool = process.env.DATABASE_URL
       database: process.env.DB_NAME,
     });
 
+// Ép search_path = public trên MỌI connection vật lý mới của pool. Cần thiết cho Neon:
+// role mặc định qua endpoint pooler có search_path rỗng (khác Render/local là "public"
+// theo mặc định) -> mọi câu query không ghi schema (kiểu "FROM BaoCao") sẽ báo
+// "relation does not exist" nếu thiếu dòng này. Vô hại ở Render/local vì public vốn
+// đã là default ở đó.
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public').catch((err) => {
+    console.error('Không đặt được search_path cho connection mới:', err.message);
+  });
+});
+
 module.exports = pool;
