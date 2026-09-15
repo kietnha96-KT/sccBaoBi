@@ -3,10 +3,12 @@ import { listNhanSu, createNhanSu, updateNhanSu, resetPassword, deleteNhanSu } f
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import SelectionActionBar from '../components/SelectionActionBar';
+import SortableTh from '../components/SortableTh';
 import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien' };
@@ -18,11 +20,11 @@ const ROLE_BADGE = {
 };
 
 export default function NhanSuPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters({ search: '' });
+  const search = filters.search;
   const { data, loading, error, reload } = useFetch(
-    () => listNhanSu({ page, limit: PAGE_SIZE, search: search || undefined }),
-    [page, search]
+    () => listNhanSu({ page, limit: PAGE_SIZE, search: search || undefined, sort_by: sortBy, sort_dir: sortDir }),
+    [page, search, sortBy, sortDir]
   );
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
   const [modal, setModal] = useState(null); // 'create' | { edit: row } | { reset: row }
@@ -116,10 +118,7 @@ export default function NhanSuPage() {
           <input
             placeholder="Tìm theo tên hoặc username..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => updateFilter({ search: e.target.value })}
           />
         </div>
       </div>
@@ -161,11 +160,11 @@ export default function NhanSuPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Họ tên</th>
-                  <th>Username</th>
-                  <th>Vai trò</th>
-                  <th>Ngày tạo</th>
+                  <SortableTh label="ID" sortKey="id" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Họ tên" sortKey="ho_ten" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Username" sortKey="username" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Vai trò" sortKey="vai_tro" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Ngày tạo" sortKey="created_at" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

@@ -6,9 +6,12 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { readRows, importCatalogByCode } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { buildOrderBy } = require('../utils/sort');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const NCC_SORT_COLUMNS = { ma_ncc: 'ma_ncc', ten_ncc: 'ten_ncc' };
 
 const rawFile = express.raw({ type: () => true, limit: '15mb' });
 
@@ -32,8 +35,9 @@ router.get(
     const countResult = await pool.query(`SELECT COUNT(*) FROM NhaCungCap ${where}`, params);
     const total = Number(countResult.rows[0].count);
 
+    const orderBy = buildOrderBy(req.query, NCC_SORT_COLUMNS, 'ORDER BY ma_ncc ASC');
     const dataResult = await pool.query(
-      `SELECT * FROM NhaCungCap ${where} ORDER BY ma_ncc ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT * FROM NhaCungCap ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
 

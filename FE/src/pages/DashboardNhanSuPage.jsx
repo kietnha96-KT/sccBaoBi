@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardTheoNhanSu, dashboardNhanSuTheoVatTu } from '../api/dashboardApi';
 import { listVatTu } from '../api/vattuApi';
@@ -10,12 +9,14 @@ import { downloadExcel } from '../api/client';
 import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import StatCard from '../components/StatCard';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import TruncatedText from '../components/TruncatedText';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nhanSuValue, nhanSuLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
@@ -32,18 +33,55 @@ const emptyFilters = {
 };
 
 export default function DashboardNhanSuPage() {
-  const [page, setPage] = useState(1);
-  const [breakdownPage, setBreakdownPage] = useState(1);
-  const [filters, setFilters] = useState(emptyFilters);
+  const { filters, page, sortBy, sortDir, updateFilter: setUrlFilter, setPage, toggleSort } =
+    useUrlFilters(emptyFilters);
+  const {
+    page: breakdownPage,
+    sortBy: breakdownSortBy,
+    sortDir: breakdownSortDir,
+    setPage: setBreakdownPage,
+    toggleSort: toggleBreakdownSort,
+  } = useUrlFilters({}, { pageKey: 'breakdown_page', sortByKey: 'breakdown_sort_by', sortDirKey: 'breakdown_sort_dir' });
   const { getRowProps } = useRowSelect();
   const { getRowProps: getBreakdownRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
-    () => dashboardTheoNhanSu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.ma_ncc, filters.la_lua_lai, page]
+    () => dashboardTheoNhanSu({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [
+      filters.tu_ngay,
+      filters.den_ngay,
+      filters.ma_vat_tu,
+      filters.lo_id,
+      filters.loi_chuan_id,
+      filters.nhansu_id,
+      filters.ma_ncc,
+      filters.la_lua_lai,
+      page,
+      sortBy,
+      sortDir,
+    ]
   );
   const { data: breakdownData } = useFetch(
-    () => dashboardNhanSuTheoVatTu({ ...cleanParams(filters), page: breakdownPage, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.ma_vat_tu, filters.lo_id, filters.loi_chuan_id, filters.nhansu_id, filters.ma_ncc, filters.la_lua_lai, breakdownPage]
+    () =>
+      dashboardNhanSuTheoVatTu({
+        ...cleanParams(filters),
+        page: breakdownPage,
+        limit: PAGE_SIZE,
+        sort_by: breakdownSortBy,
+        sort_dir: breakdownSortDir,
+      }),
+    [
+      filters.tu_ngay,
+      filters.den_ngay,
+      filters.ma_vat_tu,
+      filters.lo_id,
+      filters.loi_chuan_id,
+      filters.nhansu_id,
+      filters.ma_ncc,
+      filters.la_lua_lai,
+      breakdownPage,
+      breakdownSortBy,
+      breakdownSortDir,
+    ]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
@@ -91,9 +129,7 @@ export default function DashboardNhanSuPage() {
         (loaiLoiData?.data || []).some((l) => String(l.id) === String(loi_chuan_id) && l.ma_vat_tu === next.ma_vat_tu);
       if (!loiMoiHopLe) loi_chuan_id = '';
     }
-    setFilters({ ...next, lo_id, loi_chuan_id });
-    setPage(1);
-    setBreakdownPage(1);
+    setUrlFilter({ ...next, lo_id, loi_chuan_id }, { alsoResetPageKeys: ['breakdown_page'] });
   }
 
   const rows = data?.data || [];
@@ -219,9 +255,9 @@ export default function DashboardNhanSuPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Nhân sự</th>
-                <th>Số báo cáo</th>
-                <th>Năng suất TB (8h)</th>
+                <SortableTh label="Nhân sự" sortKey="ho_ten" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Năng suất TB (8h)" sortKey="nang_suat_tb" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -259,14 +295,14 @@ export default function DashboardNhanSuPage() {
           <table className="data-table freeze-2">
             <thead>
               <tr>
-                <th>Nhân sự</th>
-                <th>Mã vật tư</th>
-                <th>Tên vật tư</th>
-                <th>Số lô</th>
-                <th>Nhà cung cấp</th>
-                <th>Loại lỗi</th>
-                <th>Số báo cáo</th>
-                <th>Năng suất TB (8h)</th>
+                <SortableTh label="Nhân sự" sortKey="ho_ten" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Số lô" sortKey="so_lo" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Nhà cung cấp" sortKey="ten_ncc" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Loại lỗi" sortKey="ten_loi" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
+                <SortableTh label="Năng suất TB (8h)" sortKey="nang_suat_tb" sortBy={breakdownSortBy} sortDir={breakdownSortDir} onSort={toggleBreakdownSort} />
               </tr>
             </thead>
             <tbody>

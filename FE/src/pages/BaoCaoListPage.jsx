@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import { listBaoCao, deleteBaoCao, ganLoiChuan } from '../api/baocaoApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listLoaiLoi } from '../api/loailoiApi';
 import { listNhanSu } from '../api/nhansuApi';
@@ -18,11 +19,12 @@ import SelectionActionBar from '../components/SelectionActionBar';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import TruncatedText from '../components/TruncatedText';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel } from '../selectHelpers';
 
-const emptyFilters = {
+const filterDefaults = {
   tu_ngay: firstDayOfThisMonth(),
   den_ngay: lastDayOfThisMonth(),
   ma_vat_tu: '',
@@ -30,13 +32,21 @@ const emptyFilters = {
   la_lua_lai: '',
   nguoi_nhap_id: '',
   nhansu_id: '',
-  page: 1,
-  limit: PAGE_SIZE,
+  thu_kho: '',
 };
 
 export default function BaoCaoListPage() {
   const { user, isAdmin, isStaff } = useAuth();
-  const [filters, setFilters] = useState(emptyFilters);
+  const {
+    filters,
+    page,
+    sortBy,
+    sortDir,
+    updateFilter: setUrlFilter,
+    setPage: setUrlPage,
+    toggleSort,
+    resetAll,
+  } = useUrlFilters(filterDefaults);
   const [actionError, setActionError] = useState('');
   // null = đóng | 'create' = nhập mới | { editId } = sửa báo cáo đó
   const [formModal, setFormModal] = useState(null);
@@ -48,7 +58,7 @@ export default function BaoCaoListPage() {
   });
 
   const { data, loading, error, reload } = useFetch(
-    () => listBaoCao(cleanParams(filters)),
+    () => listBaoCao({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
     [
       filters.tu_ngay,
       filters.den_ngay,
@@ -57,14 +67,18 @@ export default function BaoCaoListPage() {
       filters.la_lua_lai,
       filters.nguoi_nhap_id,
       filters.nhansu_id,
-      filters.page,
-      filters.limit,
+      filters.thu_kho,
+      page,
+      sortBy,
+      sortDir,
     ]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const vatTuList = vatTuData?.data;
   const loaiLoiList = loaiLoiData?.data;
   const nhanSuList = (nhanSuData?.data || []).filter((ns) => ns.vai_tro === 'nhan_vien');
@@ -73,7 +87,7 @@ export default function BaoCaoListPage() {
     : loData?.data || [];
 
   function cleanParams(f) {
-    const p = { page: f.page, limit: f.limit };
+    const p = {};
     if (f.tu_ngay) p.tu_ngay = f.tu_ngay;
     if (f.den_ngay) p.den_ngay = f.den_ngay;
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
@@ -81,12 +95,23 @@ export default function BaoCaoListPage() {
     if (f.la_lua_lai !== '') p.la_lua_lai = f.la_lua_lai;
     if (f.nguoi_nhap_id) p.nguoi_nhap_id = f.nguoi_nhap_id;
     if (f.nhansu_id) p.nhansu_id = f.nhansu_id;
+    if (f.thu_kho) p.thu_kho = f.thu_kho;
     return p;
   }
 
   function updateFilter(patch) {
     setSelectedRowId(null); // dòng đang chọn có thể không còn ở trang/kết quả mới
-    setFilters((f) => ({ ...f, ...patch, page: patch.page ?? 1 }));
+    setUrlFilter(patch);
+  }
+
+  function goToPage(p) {
+    setSelectedRowId(null);
+    setUrlPage(p);
+  }
+
+  function handleSort(key) {
+    setSelectedRowId(null);
+    toggleSort(key);
   }
 
   const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
@@ -184,6 +209,17 @@ export default function BaoCaoListPage() {
             placeholder="Gõ số lô..."
           />
         </div>
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
+          />
+        </div>
         <div className="field">
           <label>Loại báo cáo</label>
           <select value={filters.la_lua_lai} onChange={(e) => updateFilter({ la_lua_lai: e.target.value })}>
@@ -225,7 +261,7 @@ export default function BaoCaoListPage() {
             className="btn"
             onClick={() => {
               setSelectedRowId(null);
-              setFilters(emptyFilters);
+              resetAll();
             }}
           >
             Xóa bộ lọc
@@ -291,19 +327,21 @@ export default function BaoCaoListPage() {
             <table className="data-table freeze-3">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Ngày</th>
-                  <th>Mã vật tư</th>
+                  <SortableTh label="ID" sortKey="id" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Ngày" sortKey="ngay" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   {/* <th>Tên vật tư</th> */}
-                  <th>Số lô</th>
-                  <th>Đạt</th>
-                  <th>Hư bỏ</th>
-                  <th>Tổng lựa</th>
-                  <th>Người nhập</th>
-                  <th>Nhân sự tham gia</th>
+                  <SortableTh label="Số lô" sortKey="so_lo" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Đạt" sortKey="dat" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Hư bỏ" sortKey="hu_bo" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Tổng lựa" sortKey="tong_lua" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Người nhập" sortKey="nguoi_nhap_ho_ten" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Nhân sự tham gia" sortKey="nhan_su_tham_gia" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   <th>Lỗi (tự do)</th>
-                  {isStaff && <th>Lỗi chuẩn</th>}
-                  <th>Lựa lại</th>
+                  {isStaff && (
+                    <SortableTh label="Lỗi chuẩn" sortKey="loi_chuan_ten" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  )}
+                  <SortableTh label="Lựa lại" sortKey="la_lua_lai" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   <th>Khóa</th>
                 </tr>
               </thead>
@@ -368,7 +406,7 @@ export default function BaoCaoListPage() {
           )}
         </div>
 
-        <Pagination pagination={pagination} onPageChange={(p) => updateFilter({ page: p })} />
+        <Pagination pagination={pagination} onPageChange={goToPage} />
       </div>
 
       {formModal && (

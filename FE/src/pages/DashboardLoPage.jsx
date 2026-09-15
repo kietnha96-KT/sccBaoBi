@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { dashboardTheoLo } from '../api/dashboardApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
@@ -8,11 +8,13 @@ import { formatSoLuong } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import SelectionActionBar from '../components/SelectionActionBar';
 import TheoLoDetail from '../components/TheoLoDetail';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -21,21 +23,22 @@ import { SEQUENTIAL_BLUE } from '../chartColors';
 
 // Tiến độ theo lô = toàn bộ lịch sử của lô (KHÔNG lọc ngày, giống Báo công / Sản lượng),
 // chỉ báo cáo lựa chính.
-const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '' };
+const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', thu_kho: '' };
 
 export default function DashboardLoPage() {
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState(emptyFilters);
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters(emptyFilters);
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
   const [viewRow, setViewRow] = useState(null);
   useCloseOnBackButton(!!viewRow, () => setViewRow(null));
   const { data, loading, error } = useFetch(
-    () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
+    () => dashboardTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.thu_kho, page, sortBy, sortDir]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const vatTuList = vatTuData?.data;
   const nccList = nccData?.data || [];
   const loList = filters.ma_vat_tu
@@ -47,19 +50,15 @@ export default function DashboardLoPage() {
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
     if (f.lo_id) p.lo_id = f.lo_id;
     if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
+    if (f.thu_kho) p.thu_kho = f.thu_kho;
     return p;
-  }
-
-  function handleFilterChange(next) {
-    setFilters(next);
-    setPage(1);
   }
 
   function handleVatTuChange(v) {
     const loConHopLe = !v || !filters.lo_id || (loData?.data || []).some(
       (l) => String(l.id) === String(filters.lo_id) && l.ma_vat_tu === v
     );
-    handleFilterChange({ ...filters, ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
+    updateFilter({ ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
   }
 
   const rows = data?.data || [];
@@ -68,7 +67,7 @@ export default function DashboardLoPage() {
   // đổi bộ lọc / trang -> bỏ chọn
   useEffect(() => {
     setSelectedRowId(null);
-  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page, setSelectedRowId]);
+  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.thu_kho, page, setSelectedRowId]);
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
@@ -86,7 +85,7 @@ export default function DashboardLoPage() {
             getValue={loValue}
             getLabel={loLabel}
             value={filters.lo_id}
-            onChange={(v) => handleFilterChange({ ...filters, lo_id: v })}
+            onChange={(v) => updateFilter({ lo_id: v })}
             placeholder="Gõ số lô..."
           />
         </div>
@@ -97,8 +96,19 @@ export default function DashboardLoPage() {
             getValue={nccValue}
             getLabel={nccLabel}
             value={filters.ma_ncc}
-            onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+            onChange={(v) => updateFilter({ ma_ncc: v })}
             placeholder="Gõ để tìm..."
+          />
+        </div>
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
           />
         </div>
       </div>
@@ -149,13 +159,13 @@ export default function DashboardLoPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Tên vật tư</th> */}
-                  <th>Số lô</th>
+                  <SortableTh label="Số lô" sortKey="so_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Ngày SX</th> */}
                   {/* <th>Nhà cung cấp</th> */}
-                  <th>Tiến độ (đã lựa / tổng · còn lại)</th>
-                  <th>Số báo cáo</th>
+                  <SortableTh label="Tiến độ (đã lựa / tổng · còn lại)" sortKey="con_lai" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Năng suất TB (8h)</th> */}
                 </tr>
               </thead>

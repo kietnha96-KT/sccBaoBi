@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { formatSoLuong } from '../format';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { listLo, createLo, updateLo, deleteLo } from '../api/loApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import NumberInput from '../components/NumberInput';
@@ -14,22 +15,28 @@ import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { nccValue, nccLabel } from '../selectHelpers';
 
 const emptyForm = { so_lo: '', ma_vat_tu: '', ngay_san_xuat: '', so_luong_lo: 0, ma_ncc: '' };
 
 export default function LoPage() {
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ ma_vat_tu: '', so_lo: '' });
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters({
+    ma_vat_tu: '',
+    so_lo: '',
+    thu_kho: '',
+  });
   const { data, loading, error, reload } = useFetch(
-    () => listLo({ ...filters, page, limit: PAGE_SIZE }),
-    [filters.ma_vat_tu, filters.so_lo, page]
+    () => listLo({ ...filters, page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [filters.ma_vat_tu, filters.so_lo, filters.thu_kho, page, sortBy, sortDir]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const nccList = nccData?.data || [];
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
 
   const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
@@ -37,12 +44,7 @@ export default function LoPage() {
   // đổi bộ lọc / trang -> bỏ chọn
   useEffect(() => {
     setSelectedRowId(null);
-  }, [filters.ma_vat_tu, filters.so_lo, page, setSelectedRowId]);
-
-  function updateFilters(patch) {
-    setFilters((f) => ({ ...f, ...patch }));
-    setPage(1);
-  }
+  }, [filters.ma_vat_tu, filters.so_lo, filters.thu_kho, page, setSelectedRowId]);
 
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -111,14 +113,25 @@ export default function LoPage() {
         <VatTuFilterFields
           vatTuList={vatTuList}
           value={filters.ma_vat_tu}
-          onChange={(v) => updateFilters({ ma_vat_tu: v })}
+          onChange={(v) => updateFilter({ ma_vat_tu: v })}
         />
         <div className="field">
           <label>Số lô</label>
           <input
             placeholder="Tìm số lô..."
             value={filters.so_lo}
-            onChange={(e) => updateFilters({ so_lo: e.target.value })}
+            onChange={(e) => updateFilter({ so_lo: e.target.value })}
+          />
+        </div>
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
           />
         </div>
       </div>
@@ -164,14 +177,14 @@ export default function LoPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Tên vật tư</th> */}
-                  <th>Số lô</th>
+                  <SortableTh label="Số lô" sortKey="so_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Ngày SX</th> */}
-                  <th>Nhà cung cấp</th>
-                  <th>Số lượng lô</th>
-                  <th>Đã lựa</th>
-                  <th>Còn lại</th>
+                  <SortableTh label="Nhà cung cấp" sortKey="ten_ncc" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Số lượng lô" sortKey="so_luong_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Đã lựa" sortKey="da_lua" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Còn lại" sortKey="con_lai" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

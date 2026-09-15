@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardTheoVatTu, dashboardLoiTheoVatTu } from '../api/dashboardApi';
 import { listLoaiLoi } from '../api/loailoiApi';
@@ -9,12 +8,14 @@ import { downloadExcel } from '../api/client';
 import { formatSoLuong, formatSoThapPhan, firstDayOfThisMonth, lastDayOfThisMonth } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import TruncatedText from '../components/TruncatedText';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 import { SEQUENTIAL_BLUE, CHART_GRID, CHART_AXIS } from '../chartColors';
@@ -30,18 +31,53 @@ const emptyFilters = {
 };
 
 export default function DashboardVatTuPage() {
-  const [page, setPage] = useState(1);
-  const [loiPage, setLoiPage] = useState(1);
-  const [filters, setFilters] = useState(emptyFilters);
+  const { filters, page, sortBy, sortDir, updateFilter: setUrlFilter, setPage, toggleSort } =
+    useUrlFilters(emptyFilters);
+  const {
+    page: loiPage,
+    sortBy: loiSortBy,
+    sortDir: loiSortDir,
+    setPage: setLoiPage,
+    toggleSort: toggleLoiSort,
+  } = useUrlFilters({}, { pageKey: 'loi_page', sortByKey: 'loi_sort_by', sortDirKey: 'loi_sort_dir' });
   const { getRowProps } = useRowSelect();
   const { getRowProps: getLoiRowProps } = useRowSelect();
   const { data, loading, error } = useFetch(
-    () => dashboardTheoVatTu({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.loi_chuan_id, filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
+    () => dashboardTheoVatTu({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [
+      filters.tu_ngay,
+      filters.den_ngay,
+      filters.la_lua_lai,
+      filters.loi_chuan_id,
+      filters.ma_vat_tu,
+      filters.lo_id,
+      filters.ma_ncc,
+      page,
+      sortBy,
+      sortDir,
+    ]
   );
   const { data: loiData } = useFetch(
-    () => dashboardLoiTheoVatTu({ ...cleanParams(filters), loi_chuan_id: undefined, page: loiPage, limit: PAGE_SIZE }),
-    [filters.tu_ngay, filters.den_ngay, filters.la_lua_lai, filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, loiPage]
+    () =>
+      dashboardLoiTheoVatTu({
+        ...cleanParams(filters),
+        loi_chuan_id: undefined,
+        page: loiPage,
+        limit: PAGE_SIZE,
+        sort_by: loiSortBy,
+        sort_dir: loiSortDir,
+      }),
+    [
+      filters.tu_ngay,
+      filters.den_ngay,
+      filters.la_lua_lai,
+      filters.ma_vat_tu,
+      filters.lo_id,
+      filters.ma_ncc,
+      loiPage,
+      loiSortBy,
+      loiSortDir,
+    ]
   );
   const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
@@ -70,9 +106,7 @@ export default function DashboardVatTuPage() {
   }
 
   function handleFilterChange(next) {
-    setFilters(next);
-    setPage(1);
-    setLoiPage(1);
+    setUrlFilter(next, { alsoResetPageKeys: ['loi_page'] });
   }
 
   function handleVatTuChange(v) {
@@ -184,10 +218,10 @@ export default function DashboardVatTuPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Mã vật tư</th>
-                <th>Tên vật tư</th>
-                <th>Số báo cáo</th>
-                <th>Năng suất TB (8h)</th>
+                <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Năng suất TB (8h)" sortKey="nang_suat_tb" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -232,13 +266,13 @@ export default function DashboardVatTuPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Mã vật tư</th>
-                <th>Tên vật tư</th>
-                <th>Số lô</th>
-                <th>Nhà cung cấp</th>
-                <th>Loại lỗi</th>
-                <th>Số báo cáo</th>
-                <th>Năng suất TB (8h)</th>
+                <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Số lô" sortKey="so_lo" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Nhà cung cấp" sortKey="ten_ncc" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Loại lỗi" sortKey="ten_loi" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
+                <SortableTh label="Năng suất TB (8h)" sortKey="nang_suat_tb" sortBy={loiSortBy} sortDir={loiSortDir} onSort={toggleLoiSort} />
               </tr>
             </thead>
             <tbody>

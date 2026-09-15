@@ -804,6 +804,24 @@ table.data-table {
   box-shadow: inset 0 -1px 0 var(--border);
 }
 
+.data-table th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+}
+
+.data-table th.sortable-th:hover {
+  color: var(--text);
+}
+
+.data-table th.sortable-th.sortable-th-active {
+  color: var(--primary);
+}
+
+.data-table th.sortable-th .sort-indicator {
+  display: inline-block;
+  width: 10px;
+}
+
 .data-table tbody tr {
   cursor: pointer;
 }

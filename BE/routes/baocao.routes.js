@@ -5,11 +5,25 @@ const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { buildOrderBy } = require('../utils/sort');
 const { BC_CALC_CTE } = require('../utils/productivity');
 const { SUM_DA_LUA_CHUAN } = require('../utils/loiDacBiet');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const BAOCAO_SORT_COLUMNS = {
+  id: 'bc.id',
+  ngay: 'bc.ngay',
+  ma_vat_tu: 'l.ma_vat_tu',
+  so_lo: 'l.so_lo',
+  dat: 'bc.dat',
+  hu_bo: 'bc.hu_bo',
+  tong_lua: 'bc.tong_lua',
+  nguoi_nhap_ho_ten: 'ns.ho_ten',
+  loi_chuan_ten: 'll.ten_loi',
+  la_lua_lai: 'bc.la_lua_lai',
+};
 
 // dùng bc_nang_suat (từ BC_CALC_CTE) thay cho BaoCao -> có sẵn nang_suat_8h cho từng dòng
 const BASE_FROM = `
@@ -50,8 +64,17 @@ const LIST_SELECT = `
 
 // Xây where-clause dùng chung cho list và export
 function buildFilters(query) {
-  const { tu_ngay, den_ngay, ma_vat_tu, lo_id, nguoi_nhap_id, nhansu_id, la_lua_lai, loi_chuan_id } =
-    query;
+  const {
+    tu_ngay,
+    den_ngay,
+    ma_vat_tu,
+    lo_id,
+    nguoi_nhap_id,
+    nhansu_id,
+    la_lua_lai,
+    loi_chuan_id,
+    thu_kho,
+  } = query;
   const conditions = [];
   const params = [];
 
@@ -89,6 +112,10 @@ function buildFilters(query) {
       `EXISTS (SELECT 1 FROM BaoCao_NhanSu bcns WHERE bcns.baocao_id = bc.id AND bcns.nhansu_id = $${params.length})`
     );
   }
+  if (thu_kho) {
+    params.push(thu_kho);
+    conditions.push(`v.thu_kho = $${params.length}`);
+  }
 
   return {
     where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
@@ -104,13 +131,14 @@ router.get(
     const { page, limit, offset } = getPagination(req.query, { maxLimit: 200 });
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM BaoCao bc JOIN Lo l ON l.id = bc.lo_id ${where}`,
+      `SELECT COUNT(*) FROM BaoCao bc JOIN Lo l ON l.id = bc.lo_id JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu ${where}`,
       params
     );
     const total = Number(countResult.rows[0].count);
 
+    const orderBy = buildOrderBy(req.query, BAOCAO_SORT_COLUMNS, 'ORDER BY bc.ngay DESC, bc.id DESC');
     const dataResult = await pool.query(
-      `${LIST_SELECT} ${where} ORDER BY bc.ngay DESC, bc.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `${LIST_SELECT} ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
 

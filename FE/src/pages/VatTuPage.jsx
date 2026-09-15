@@ -3,23 +3,36 @@ import { listVatTu, listLoaiVatTu, createVatTu, updateVatTu, deleteVatTu } from 
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import TruncatedText from '../components/TruncatedText';
 import ImportExcelButton from '../components/ImportExcelButton';
 import SelectionActionBar from '../components/SelectionActionBar';
+import SortableTh from '../components/SortableTh';
 
 const PAGE_SIZE = 15;
 const emptyForm = { ma_vat_tu: '', ten_vat_tu: '', loai: '', thu_kho: '' };
 
 export default function VatTuPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [loaiFilter, setLoaiFilter] = useState('');
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters({
+    search: '',
+    loai: '',
+  });
+  const search = filters.search;
+  const loaiFilter = filters.loai;
   const { data, loading, error, reload } = useFetch(
-    () => listVatTu({ page, limit: PAGE_SIZE, search: search || undefined, loai: loaiFilter || undefined }),
-    [page, search, loaiFilter]
+    () =>
+      listVatTu({
+        page,
+        limit: PAGE_SIZE,
+        search: search || undefined,
+        loai: loaiFilter || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      }),
+    [page, search, loaiFilter, sortBy, sortDir]
   );
   const { data: loaiOptions } = useFetch(listLoaiVatTu, []);
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
@@ -104,22 +117,13 @@ export default function VatTuPage() {
           <input
             placeholder="Tìm theo mã hoặc tên vật tư..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => updateFilter({ search: e.target.value })}
           />
         </div>
         {loaiOptions?.length > 0 && (
           <div className="field">
             <label>Loại</label>
-            <select
-              value={loaiFilter}
-              onChange={(e) => {
-                setLoaiFilter(e.target.value);
-                setPage(1);
-              }}
-            >
+            <select value={loaiFilter} onChange={(e) => updateFilter({ loai: e.target.value })}>
               <option value="">Tất cả</option>
               {loaiOptions.map((l) => (
                 <option key={l} value={l}>
@@ -170,10 +174,10 @@ export default function VatTuPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
-                  <th>Tên vật tư</th>
-                  <th>Loại</th>
-                  <th>Thủ kho</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Loại" sortKey="loai" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Thủ kho" sortKey="thu_kho" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

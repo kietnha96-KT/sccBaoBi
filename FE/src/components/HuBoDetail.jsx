@@ -19,7 +19,7 @@ const pctText = (v) => (v == null ? '—' : `${formatSoThapPhan(v)}%`);
 export default function HuBoDetail({ row, params }) {
   const { data, loading, error } = useFetch(
     () => dashboardHuBoChiTiet({ ...params, lo_id: row.lo_id }),
-    [row.lo_id, params.ma_vat_tu, params.ma_ncc, params.loi_chuan_id]
+    [row.lo_id, params.ma_vat_tu, params.ma_ncc, params.loi_chuan_id, params.thu_kho]
   );
   const list = data?.data || [];
   const theoLoi = data?.theo_loi || [];

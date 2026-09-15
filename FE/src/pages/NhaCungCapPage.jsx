@@ -3,22 +3,24 @@ import { listNhaCungCap, createNhaCungCap, updateNhaCungCap, deleteNhaCungCap } 
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import ImportExcelButton from '../components/ImportExcelButton';
 import SelectionActionBar from '../components/SelectionActionBar';
+import SortableTh from '../components/SortableTh';
 import TruncatedText from '../components/TruncatedText';
 import { PAGE_SIZE } from '../constants';
 
 const emptyForm = { ma_ncc: '', ten_ncc: '' };
 
 export default function NhaCungCapPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters({ search: '' });
+  const search = filters.search;
   const { data, loading, error, reload } = useFetch(
-    () => listNhaCungCap({ page, limit: PAGE_SIZE, search: search || undefined }),
-    [page, search]
+    () => listNhaCungCap({ page, limit: PAGE_SIZE, search: search || undefined, sort_by: sortBy, sort_dir: sortDir }),
+    [page, search, sortBy, sortDir]
   );
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
 
@@ -92,10 +94,7 @@ export default function NhaCungCapPage() {
           <input
             placeholder="Tìm theo mã hoặc tên nhà cung cấp..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => updateFilter({ search: e.target.value })}
           />
         </div>
       </div>
@@ -142,8 +141,8 @@ export default function NhaCungCapPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã nhà cung cấp</th>
-                  <th>Tên nhà cung cấp</th>
+                  <SortableTh label="Mã nhà cung cấp" sortKey="ma_ncc" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tên nhà cung cấp" sortKey="ten_ncc" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

@@ -6,7 +6,17 @@ const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { BC_CALC_CTE } = require('../utils/productivity');
 const { paginateArray } = require('../utils/pagination');
+const { sortRows } = require('../utils/sort');
 const { LO_DA_LUA_JOIN, dacBietToText } = require('../utils/loiDacBiet');
+
+// whitelist cột được phép sort cho từng bảng dashboard - key khớp field FE nhận trong result.data
+const LO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', da_lua: 'da_lua', con_lai: 'con_lai', so_bao_cao: 'so_bao_cao' };
+const BAOCONG_LO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', tong_gio_lam: 'tong_gio_lam', gio_thuong: 'gio_thuong', gio_dac_biet: 'gio_dac_biet' };
+const HU_BO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', tong_hu_bo: 'tong_hu_bo', ty_le_hu_bo_pct: 'ty_le_hu_bo_pct' };
+const THEO_VATTU_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
+const LOI_THEO_VATTU_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', so_lo: 'so_lo', ten_ncc: 'ten_ncc', ten_loi: 'ten_loi', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
+const THEO_NHANSU_SORT_COLUMNS = { ho_ten: 'ho_ten', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
+const NHANSU_BREAKDOWN_SORT_COLUMNS = { ho_ten: 'ho_ten', ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', so_lo: 'so_lo', ten_ncc: 'ten_ncc', ten_loi: 'ten_loi', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -134,6 +144,7 @@ function buildNhanSuVatTuBreakdownQuery(query) {
 
 router.get(
   '/nhansu',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoNhanSuQuery(req.query);
     const result = await pool.query(sql, params);
@@ -143,12 +154,14 @@ router.get(
       tong_bao_cao: result.rows.reduce((s, r) => s + Number(r.so_bao_cao), 0),
       nang_suat_cao_nhat: nangSuatValues.length ? Math.max(...nangSuatValues) : null,
     };
-    res.json({ ...paginateArray(result.rows, req.query), summary });
+    const rows = sortRows(result.rows, req.query, THEO_NHANSU_SORT_COLUMNS);
+    res.json({ ...paginateArray(rows, req.query), summary });
   })
 );
 
 router.get(
   '/nhansu/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoNhanSuQuery(req.query);
     const result = await pool.query(sql, params);
@@ -170,15 +183,18 @@ router.get(
 // (loc nguoc: chon vat tu/lo o filter chinh se chi con nhung nhan su co lam vat tu/lo do)
 router.get(
   '/nhansu/vattu',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildNhanSuVatTuBreakdownQuery(req.query);
     const result = await pool.query(sql, params);
-    res.json(paginateArray(result.rows, req.query));
+    const rows = sortRows(result.rows, req.query, NHANSU_BREAKDOWN_SORT_COLUMNS);
+    res.json(paginateArray(rows, req.query));
   })
 );
 
 router.get(
   '/nhansu/vattu/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildNhanSuVatTuBreakdownQuery(req.query);
     const result = await pool.query(sql, params);
@@ -239,15 +255,18 @@ function buildTheoVatTuQuery(query) {
 
 router.get(
   '/vattu',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
-    res.json(paginateArray(result.rows, req.query));
+    const rows = sortRows(result.rows, req.query, THEO_VATTU_SORT_COLUMNS);
+    res.json(paginateArray(rows, req.query));
   })
 );
 
 router.get(
   '/vattu/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
@@ -311,15 +330,18 @@ function buildLoiTheoVatTuQuery(query) {
 
 router.get(
   '/vattu/loi',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildLoiTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
-    res.json(paginateArray(result.rows, req.query));
+    const rows = sortRows(result.rows, req.query, LOI_THEO_VATTU_SORT_COLUMNS);
+    res.json(paginateArray(rows, req.query));
   })
 );
 
 router.get(
   '/vattu/loi/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildLoiTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
@@ -360,6 +382,10 @@ function buildTheoLoQuery(query) {
     outerParams.push(query.ma_ncc);
     outerWhere += ` AND l.ma_ncc = $${outerParams.length}`;
   }
+  if (query.thu_kho) {
+    outerParams.push(query.thu_kho);
+    outerWhere += ` AND v.thu_kho = $${outerParams.length}`;
+  }
 
   const sql = `
     ${BC_CALC_CTE}
@@ -389,10 +415,12 @@ function buildTheoLoQuery(query) {
 
 router.get(
   '/lo',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
-    res.json(paginateArray(result.rows, req.query));
+    const rows = sortRows(result.rows, req.query, LO_SORT_COLUMNS);
+    res.json(paginateArray(rows, req.query));
   })
 );
 
@@ -400,6 +428,7 @@ router.get(
 // có đánh dấu). Dùng cho popup "Xem" ở Dashboard tiến độ theo lô.
 router.get(
   '/lo/chi-tiet',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const sql = `
       ${BC_CALC_CTE}
@@ -426,6 +455,7 @@ router.get(
 
 router.get(
   '/lo/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
@@ -476,6 +506,10 @@ function buildBaoCongTheoLoQuery(query) {
   if (query.ma_ncc) {
     outerParams.push(query.ma_ncc);
     outerWhere += ` AND l.ma_ncc = $${outerParams.length}`;
+  }
+  if (query.thu_kho) {
+    outerParams.push(query.thu_kho);
+    outerWhere += ` AND v.thu_kho = $${outerParams.length}`;
   }
 
   // gio_lam mỗi người của 1 báo cáo = gio_lam / so_nhansu
@@ -543,7 +577,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const { sql, params } = buildBaoCongTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
-    // summary tính trên TOÀN BỘ kết quả đã lọc (không chỉ trang hiện tại)
+    // summary tính trên TOÀN BỘ kết quả đã lọc (không chỉ trang hiện tại) - tính trước khi sort
     const summary = {
       so_lo: result.rows.length,
       tong_gio_lam: result.rows.reduce((s, r) => s + Number(r.tong_gio_lam || 0), 0),
@@ -551,7 +585,8 @@ router.get(
       gio_dac_biet: result.rows.reduce((s, r) => s + Number(r.gio_dac_biet || 0), 0),
       tong_bao_cao: result.rows.reduce((s, r) => s + Number(r.so_bao_cao || 0), 0),
     };
-    res.json({ ...paginateArray(result.rows, req.query), summary });
+    const rows = sortRows(result.rows, req.query, BAOCONG_LO_SORT_COLUMNS);
+    res.json({ ...paginateArray(rows, req.query), summary });
   })
 );
 
@@ -637,6 +672,10 @@ function huBoWhere(query) {
   if (query.loi_chuan_id) {
     params.push(query.loi_chuan_id);
     where += ` AND bc.loi_chuan_id = $${params.length}`;
+  }
+  if (query.thu_kho) {
+    params.push(query.thu_kho);
+    where += ` AND v.thu_kho = $${params.length}`;
   }
   return { where, params };
 }
@@ -730,11 +769,13 @@ function huBoSummary(rows) {
 
 router.get(
   '/hu-bo',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildHuBoQuery(req.query);
     const result = await pool.query(sql, params);
+    const rows = sortRows(result.rows, req.query, HU_BO_SORT_COLUMNS);
     res.json({
-      ...paginateArray(result.rows, req.query),
+      ...paginateArray(rows, req.query),
       summary: huBoSummary(result.rows),
     });
   })
@@ -742,6 +783,7 @@ router.get(
 
 router.get(
   '/hu-bo/chi-tiet',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildHuBoChiTietQuery(req.query);
     const theoLoi = buildHuBoTheoLoiQuery(req.query);
@@ -755,6 +797,7 @@ router.get(
 
 router.get(
   '/hu-bo/export',
+  requireStaff,
   asyncHandler(async (req, res) => {
     const { sql, params } = buildHuBoQuery(req.query);
     const bd = buildHuBoTheoLoiTatCaQuery(req.query);

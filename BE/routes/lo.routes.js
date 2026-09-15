@@ -5,10 +5,22 @@ const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { buildOrderBy } = require('../utils/sort');
 const { LO_DA_LUA_JOIN, SUM_DA_LUA_CHUAN, dacBietToText } = require('../utils/loiDacBiet');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+// whitelist cột được phép sort (chặn SQL injection qua ?sort_by=) - key khớp với FE
+const LO_SORT_COLUMNS = {
+  ma_vat_tu: 'l.ma_vat_tu',
+  so_lo: 'l.so_lo',
+  ten_ncc: 'n.ten_ncc',
+  ngay_san_xuat: 'l.ngay_san_xuat',
+  so_luong_lo: 'l.so_luong_lo',
+  da_lua: 'da_lua',
+  con_lai: 'con_lai',
+};
 
 const LO_SELECT = `
   SELECT
@@ -28,7 +40,7 @@ const LO_SELECT = `
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { ma_vat_tu, so_lo } = req.query;
+    const { ma_vat_tu, so_lo, thu_kho } = req.query;
     const { page, limit, offset } = getPagination(req.query);
     const conditions = [];
     const params = [];
@@ -41,17 +53,22 @@ router.get(
       params.push(`%${so_lo}%`);
       conditions.push(`l.so_lo ILIKE $${params.length}`);
     }
+    if (thu_kho) {
+      params.push(thu_kho);
+      conditions.push(`v.thu_kho = $${params.length}`);
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM Lo l ${where}`,
+      `SELECT COUNT(*) FROM Lo l JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu ${where}`,
       params
     );
     const total = Number(countResult.rows[0].count);
 
+    const orderBy = buildOrderBy(req.query, LO_SORT_COLUMNS, 'ORDER BY l.id DESC');
     const dataResult = await pool.query(
-      `${LO_SELECT} ${where} ORDER BY l.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `${LO_SELECT} ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });

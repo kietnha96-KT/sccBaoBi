@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { dashboardHuBo } from '../api/dashboardApi';
 import { listLoaiLoi } from '../api/loailoiApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
@@ -9,11 +9,13 @@ import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import SelectionActionBar from '../components/SelectionActionBar';
 import HuBoDetail from '../components/HuBoDetail';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -23,7 +25,7 @@ import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 // Mỗi dòng = 1 lô. Bấm dòng -> nút Xem -> popup liệt kê từng báo cáo của lô.
 // Phạm vi: toàn bộ lịch sử của lô (KHÔNG lọc ngày, giống Báo công), chỉ báo cáo lựa chính.
 // Tỷ lệ hư bỏ = SUM(hư) / SUM(lựa) (có trọng số). Đã loại báo cáo dính loại lỗi đặc biệt.
-const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', loi_chuan_id: '' };
+const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', loi_chuan_id: '', thu_kho: '' };
 
 // màu theo mức tỷ lệ hư bỏ
 function pctColor(pct) {
@@ -36,20 +38,21 @@ function pctColor(pct) {
 const pctText = (v) => (v == null ? '—' : `${formatSoThapPhan(v)}%`);
 
 export default function DashboardHuBoPage() {
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState(emptyFilters);
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters(emptyFilters);
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
   const [viewRow, setViewRow] = useState(null);
   useCloseOnBackButton(!!viewRow, () => setViewRow(null));
 
   const { data, loading, error } = useFetch(
-    () => dashboardHuBo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.loi_chuan_id, page]
+    () => dashboardHuBo({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.loi_chuan_id, filters.thu_kho, page, sortBy, sortDir]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const { data: loaiLoiData } = useFetch(() => listLoaiLoi({ limit: ALL_LIMIT }), []);
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const vatTuList = vatTuData?.data;
   const nccList = nccData?.data || [];
   const loList = filters.ma_vat_tu
@@ -69,12 +72,8 @@ export default function DashboardHuBoPage() {
     if (f.lo_id) p.lo_id = f.lo_id;
     if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
     if (f.loi_chuan_id) p.loi_chuan_id = f.loi_chuan_id;
+    if (f.thu_kho) p.thu_kho = f.thu_kho;
     return p;
-  }
-
-  function handleFilterChange(next) {
-    setFilters(next);
-    setPage(1);
   }
 
   function handleVatTuChange(v) {
@@ -84,8 +83,7 @@ export default function DashboardHuBoPage() {
     const loiConHopLe = !v || !filters.loi_chuan_id || (loaiLoiData?.data || []).some(
       (l) => String(l.id) === String(filters.loi_chuan_id) && l.ma_vat_tu === v
     );
-    handleFilterChange({
-      ...filters,
+    updateFilter({
       ma_vat_tu: v,
       lo_id: loConHopLe ? filters.lo_id : '',
       loi_chuan_id: loiConHopLe ? filters.loi_chuan_id : '',
@@ -98,7 +96,15 @@ export default function DashboardHuBoPage() {
   // đổi bộ lọc / trang -> bỏ chọn
   useEffect(() => {
     setSelectedRowId(null);
-  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.loi_chuan_id, page, setSelectedRowId]);
+  }, [
+    filters.ma_vat_tu,
+    filters.lo_id,
+    filters.ma_ncc,
+    filters.loi_chuan_id,
+    filters.thu_kho,
+    page,
+    setSelectedRowId,
+  ]);
 
   return (
     <div className={selectedRow ? 'has-selection-bar' : undefined}>
@@ -114,7 +120,7 @@ export default function DashboardHuBoPage() {
             getValue={loValue}
             getLabel={loLabel}
             value={filters.lo_id}
-            onChange={(v) => handleFilterChange({ ...filters, lo_id: v })}
+            onChange={(v) => updateFilter({ lo_id: v })}
             placeholder="Gõ số lô..."
           />
         </div>
@@ -125,15 +131,26 @@ export default function DashboardHuBoPage() {
             getValue={nccValue}
             getLabel={nccLabel}
             value={filters.ma_ncc}
-            onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+            onChange={(v) => updateFilter({ ma_ncc: v })}
             placeholder="Gõ để tìm..."
+          />
+        </div>
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
           />
         </div>
         <div className="field">
           <label>Loại lỗi (đã gán)</label>
           <select
             value={filters.loi_chuan_id}
-            onChange={(e) => handleFilterChange({ ...filters, loi_chuan_id: e.target.value })}
+            onChange={(e) => updateFilter({ loi_chuan_id: e.target.value })}
           >
             <option value="">Tất cả</option>
             {loaiLoiList.map((l) => (
@@ -195,13 +212,13 @@ export default function DashboardHuBoPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Tên vật tư</th> */}
-                  <th>Số lô</th>
+                  <SortableTh label="Số lô" sortKey="so_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Nhà cung cấp</th> */}
-                  <th>Tổng lô</th>
-                  <th>Tổng hư bỏ</th>
-                  <th>Tỷ lệ hư bỏ</th>
+                  <SortableTh label="Tổng lô" sortKey="so_luong_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tổng hư bỏ" sortKey="tong_hu_bo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tỷ lệ hư bỏ" sortKey="ty_le_hu_bo_pct" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

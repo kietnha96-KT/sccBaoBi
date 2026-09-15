@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { dashboardBaoCongTheoLo } from '../api/dashboardApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { listLo } from '../api/loApi';
 import { listNhaCungCap } from '../api/nhacungcapApi';
 import { downloadExcel } from '../api/client';
@@ -8,11 +8,13 @@ import { formatSoLuong, formatSoThapPhan } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
 import { useCloseOnBackButton } from '../hooks/useCloseOnBackButton';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import VatTuFilterFields from '../components/VatTuFilterFields';
 import SearchableSelect from '../components/SearchableSelect';
+import SortableTh from '../components/SortableTh';
 import SelectionActionBar from '../components/SelectionActionBar';
 import BaoCongLoDetail from '../components/BaoCongLoDetail';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
@@ -23,24 +25,25 @@ import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 // Báo cáo làm chung -> giờ chia đều cho mỗi người rồi cộng dồn.
 // Phạm vi: toàn bộ lịch sử của lô (không lọc ngày), CHỈ báo cáo lựa chính.
 // Chi tiết giờ theo người xem ở popup (bấm dòng -> nút Xem trên thanh chọn).
-const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '' };
+const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', thu_kho: '' };
 
 const gioText = (h) => (h == null ? '—' : `${formatSoThapPhan(h, 1)}h`);
 
 export default function DashboardBaoCongLoPage() {
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState(emptyFilters);
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters(emptyFilters);
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
   const [viewLo, setViewLo] = useState(null);
   useCloseOnBackButton(!!viewLo, () => setViewLo(null));
 
   const { data, loading, error } = useFetch(
-    () => dashboardBaoCongTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE }),
-    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page]
+    () => dashboardBaoCongTheoLo({ ...cleanParams(filters), page, limit: PAGE_SIZE, sort_by: sortBy, sort_dir: sortDir }),
+    [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.thu_kho, page, sortBy, sortDir]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: loData } = useFetch(() => listLo({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const vatTuList = vatTuData?.data;
   const nccList = nccData?.data || [];
   const loList = filters.ma_vat_tu
@@ -53,26 +56,22 @@ export default function DashboardBaoCongLoPage() {
   // đổi bộ lọc / trang -> bỏ chọn
   useEffect(() => {
     setSelectedRowId(null);
-  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, page, setSelectedRowId]);
+  }, [filters.ma_vat_tu, filters.lo_id, filters.ma_ncc, filters.thu_kho, page, setSelectedRowId]);
 
   function cleanParams(f) {
     const p = {};
     if (f.ma_vat_tu) p.ma_vat_tu = f.ma_vat_tu;
     if (f.lo_id) p.lo_id = f.lo_id;
     if (f.ma_ncc) p.ma_ncc = f.ma_ncc;
+    if (f.thu_kho) p.thu_kho = f.thu_kho;
     return p;
-  }
-
-  function handleFilterChange(next) {
-    setFilters(next);
-    setPage(1);
   }
 
   function handleVatTuChange(v) {
     const loConHopLe = !v || !filters.lo_id || (loData?.data || []).some(
       (l) => String(l.id) === String(filters.lo_id) && l.ma_vat_tu === v
     );
-    handleFilterChange({ ...filters, ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
+    updateFilter({ ma_vat_tu: v, lo_id: loConHopLe ? filters.lo_id : '' });
   }
 
   return (
@@ -91,7 +90,7 @@ export default function DashboardBaoCongLoPage() {
             getValue={loValue}
             getLabel={loLabel}
             value={filters.lo_id}
-            onChange={(v) => handleFilterChange({ ...filters, lo_id: v })}
+            onChange={(v) => updateFilter({ lo_id: v })}
             placeholder="Gõ số lô..."
           />
         </div>
@@ -102,8 +101,19 @@ export default function DashboardBaoCongLoPage() {
             getValue={nccValue}
             getLabel={nccLabel}
             value={filters.ma_ncc}
-            onChange={(v) => handleFilterChange({ ...filters, ma_ncc: v })}
+            onChange={(v) => updateFilter({ ma_ncc: v })}
             placeholder="Gõ để tìm..."
+          />
+        </div>
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
           />
         </div>
       </div>
@@ -151,15 +161,15 @@ export default function DashboardBaoCongLoPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Tên vật tư</th> */}
-                  <th>Số lô</th>
+                  <SortableTh label="Số lô" sortKey="so_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Nhà cung cấp</th> */}
-                  <th>Số lượng lô</th>
+                  <SortableTh label="Số lượng lô" sortKey="so_luong_lo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   {/* <th>Số báo cáo</th> */}
-                  <th>Tổng giờ</th>
-                  <th>Giờ lỗi thường</th>
-                  <th>Giờ lỗi đặc biệt</th>
+                  <SortableTh label="Tổng giờ" sortKey="tong_gio_lam" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Giờ lỗi thường" sortKey="gio_thuong" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Giờ lỗi đặc biệt" sortKey="gio_dac_biet" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

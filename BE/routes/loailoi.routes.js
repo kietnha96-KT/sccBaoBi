@@ -6,9 +6,18 @@ const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { readRows, importLoaiLoi } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { buildOrderBy } = require('../utils/sort');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const LOAILOI_SORT_COLUMNS = {
+  ma_vat_tu: 'v.ma_vat_tu',
+  ten_vat_tu: 'v.ten_vat_tu',
+  ten_loi: 'll.ten_loi',
+  muc_dich: 'll.muc_dich',
+  la_loi_dac_biet: 'll.la_loi_dac_biet',
+};
 
 const rawFile = express.raw({ type: () => true, limit: '15mb' });
 
@@ -32,23 +41,29 @@ const LOAILOI_SELECT = `
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { ma_vat_tu } = req.query;
+    const { ma_vat_tu, thu_kho } = req.query;
     const { page, limit, offset } = getPagination(req.query);
     const params = [];
-    let where = '';
+    const conditions = [];
     if (ma_vat_tu) {
       params.push(ma_vat_tu);
-      where = `WHERE ll.ma_vat_tu = $${params.length}`;
+      conditions.push(`ll.ma_vat_tu = $${params.length}`);
     }
+    if (thu_kho) {
+      params.push(thu_kho);
+      conditions.push(`v.thu_kho = $${params.length}`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM LoaiLoi ll ${where}`,
+      `SELECT COUNT(*) FROM LoaiLoi ll JOIN VatTu v ON v.ma_vat_tu = ll.ma_vat_tu ${where}`,
       params
     );
     const total = Number(countResult.rows[0].count);
 
+    const orderBy = buildOrderBy(req.query, LOAILOI_SORT_COLUMNS, 'ORDER BY v.ma_vat_tu, ll.ten_loi');
     const dataResult = await pool.query(
-      `${LOAILOI_SELECT} ${where} ORDER BY v.ma_vat_tu, ll.ten_loi LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `${LOAILOI_SELECT} ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });

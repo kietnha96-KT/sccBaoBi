@@ -6,18 +6,21 @@ import {
   deleteLoaiLoi,
   loaiLoiTacDong,
 } from '../api/loailoiApi';
-import { listVatTu } from '../api/vattuApi';
+import { listVatTu, listThuKho } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
 import { formatSoLuong } from '../format';
 import { useFetch } from '../hooks/useFetch';
 import { useRowSelect } from '../hooks/useRowSelect';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import Alert from '../components/Alert';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import ImportExcelButton from '../components/ImportExcelButton';
+import SearchableSelect from '../components/SearchableSelect';
 import SelectionActionBar from '../components/SelectionActionBar';
 import TruncatedText from '../components/TruncatedText';
 import VatTuFilterFields from '../components/VatTuFilterFields';
+import SortableTh from '../components/SortableTh';
 import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 
 // Mục đích dùng của loại lỗi:
@@ -27,26 +30,33 @@ import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 const MUC_DICH_LABEL = { gan_nhan: 'Gán nhãn', tach_hu_bo: 'Tách hư bỏ', ca_hai: 'Cả hai' };
 
 export default function LoaiLoiPage() {
-  const [page, setPage] = useState(1);
-  const [maVatTuFilter, setMaVatTuFilter] = useState('');
+  const { filters, page, sortBy, sortDir, updateFilter, setPage, toggleSort } = useUrlFilters({
+    ma_vat_tu: '',
+    thu_kho: '',
+  });
   const { data, loading, error, reload } = useFetch(
-    () => listLoaiLoi({ ma_vat_tu: maVatTuFilter || undefined, page, limit: PAGE_SIZE }),
-    [maVatTuFilter, page]
+    () =>
+      listLoaiLoi({
+        ma_vat_tu: filters.ma_vat_tu || undefined,
+        thu_kho: filters.thu_kho || undefined,
+        page,
+        limit: PAGE_SIZE,
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      }),
+    [filters.ma_vat_tu, filters.thu_kho, page, sortBy, sortDir]
   );
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
+  const { data: thuKhoData } = useFetch(listThuKho, []);
+  const thuKhoList = thuKhoData || [];
   const { selectedRowId, setSelectedRowId, getRowProps } = useRowSelect();
 
   const selectedRow = (data?.data || []).find((r) => r.id === selectedRowId) || null;
 
   useEffect(() => {
     setSelectedRowId(null);
-  }, [maVatTuFilter, page, setSelectedRowId]);
-
-  function handleFilterChange(v) {
-    setMaVatTuFilter(v);
-    setPage(1);
-  }
+  }, [filters.ma_vat_tu, filters.thu_kho, page, setSelectedRowId]);
 
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
@@ -56,7 +66,7 @@ export default function LoaiLoiPage() {
   const [tacDong, setTacDong] = useState(null);
 
   function openCreate() {
-    setForm({ ma_vat_tu: maVatTuFilter || '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
+    setForm({ ma_vat_tu: filters.ma_vat_tu || '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
     setFormError('');
     setTacDong(null);
     setModal('create');
@@ -163,7 +173,22 @@ export default function LoaiLoiPage() {
       <Alert>{error}</Alert>
 
       <div className="filter-bar">
-        <VatTuFilterFields vatTuList={vatTuList} value={maVatTuFilter} onChange={handleFilterChange} />
+        <VatTuFilterFields
+          vatTuList={vatTuList}
+          value={filters.ma_vat_tu}
+          onChange={(v) => updateFilter({ ma_vat_tu: v })}
+        />
+        <div className="field field-md">
+          <label>Thủ kho</label>
+          <SearchableSelect
+            options={thuKhoList}
+            getValue={(t) => t}
+            getLabel={(t) => t}
+            value={filters.thu_kho}
+            onChange={(v) => updateFilter({ thu_kho: v })}
+            placeholder="Gõ tên thủ kho..."
+          />
+        </div>
       </div>
 
       <div className="card">
@@ -205,11 +230,11 @@ export default function LoaiLoiPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Mã vật tư</th>
-                  <th>Tên vật tư</th>
-                  <th>Tên lỗi</th>
-                  <th>Mục đích</th>
-                  <th>Lỗi đặc biệt</th>
+                  <SortableTh label="Mã vật tư" sortKey="ma_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Tên lỗi" sortKey="ten_loi" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Mục đích" sortKey="muc_dich" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Lỗi đặc biệt" sortKey="la_loi_dac_biet" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>

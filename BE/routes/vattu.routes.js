@@ -6,9 +6,12 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { readRows, importCatalogByCode } = require('../utils/excelImport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
+const { buildOrderBy } = require('../utils/sort');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const VATTU_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', loai: 'loai', thu_kho: 'thu_kho' };
 
 // nhận nguyên file (bất kể Content-Type) làm Buffer cho các route /import
 const rawFile = express.raw({ type: () => true, limit: '15mb' });
@@ -38,8 +41,9 @@ router.get(
     const countResult = await pool.query(`SELECT COUNT(*) FROM VatTu ${where}`, params);
     const total = Number(countResult.rows[0].count);
 
+    const orderBy = buildOrderBy(req.query, VATTU_SORT_COLUMNS, 'ORDER BY ma_vat_tu ASC');
     const dataResult = await pool.query(
-      `SELECT * FROM VatTu ${where} ORDER BY ma_vat_tu ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT * FROM VatTu ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
 
@@ -55,6 +59,19 @@ router.get(
       `SELECT DISTINCT loai FROM VatTu WHERE loai IS NOT NULL AND loai != '' ORDER BY loai ASC`
     );
     res.json(result.rows.map((r) => r.loai));
+  })
+);
+
+// GET /api/vattu/thu-kho-list - danh sách các "thủ kho" khác nhau đang có (dùng đổ vào dropdown
+// lọc "Tên thủ kho" ở các trang báo cáo/lô/loại lỗi/dashboard - lọc theo mã vật tư nào đã khai
+// thủ kho đó trong danh mục vật tư).
+router.get(
+  '/thu-kho-list',
+  asyncHandler(async (req, res) => {
+    const result = await pool.query(
+      `SELECT DISTINCT thu_kho FROM VatTu WHERE thu_kho IS NOT NULL AND thu_kho != '' ORDER BY thu_kho ASC`
+    );
+    res.json(result.rows.map((r) => r.thu_kho));
   })
 );
 
