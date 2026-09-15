@@ -51,14 +51,16 @@ export default defineConfig({
         clientsClaim: true,
         // SW mới bỏ qua trạng thái "waiting", vào hoạt động ngay -> kèm autoUpdate sẽ tự reload.
         skipWaiting: true,
-        // Không cache API + không rơi về index.html cho request tài nguyên (assets)
+        // Không rơi về index.html cho request tài nguyên (assets) khi điều hướng SPA
         navigateFallbackDenylist: [/^\/api\//, /^\/assets\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/,
-            handler: 'NetworkOnly',
-          },
-        ],
+        // KHÔNG khai báo runtimeCaching cho /api/* - trước đây có rule NetworkOnly ở đây
+        // (không cache gì) nhưng khai báo rule là request VẪN bị Service Worker chặn lại,
+        // tự gọi fetch() riêng trong luồng của nó rồi mới trả về cho trang - tốn thêm
+        // ~400-500ms/request (đo được trong DevTools: mỗi API call hiện 2 dòng, 1 "xhr" từ
+        // trang + 1 "fetch" từ workbox, dòng đầu luôn lâu hơn dòng sau đúng bằng phần overhead
+        // này) mà không được lợi gì vì NetworkOnly vốn không cache. Không khai báo rule nào
+        // -> Workbox không match -> không respondWith() -> trình duyệt tự fetch thẳng, không
+        // qua Service Worker, hành vi bên ngoài (luôn ra network thật, không cache) y hệt cũ.
       },
       devOptions: {
         enabled: false,
