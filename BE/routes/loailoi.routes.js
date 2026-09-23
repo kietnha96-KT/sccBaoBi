@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -40,7 +39,7 @@ const LOAILOI_SELECT = `
 // GET /api/loailoi?ma_vat_tu=xxx - co phan trang (mac dinh 15/trang)
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ma_vat_tu, thu_kho } = req.query;
     const { page, limit, offset } = getPagination(req.query);
     const params = [];
@@ -67,14 +66,14 @@ router.get(
       [...params, limit, offset]
     );
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/loailoi/export
 router.get(
   '/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`${LOAILOI_SELECT} ORDER BY v.ma_vat_tu, ll.ten_loi`);
     await sendExcel(res, {
       sheetName: 'LoaiLoi',
@@ -93,7 +92,7 @@ router.get(
         _muc_dich_txt: MUC_DICH_LABEL[r.muc_dich] || r.muc_dich,
       })),
     });
-  })
+  }
 );
 
 // POST /api/loailoi/import - nạp danh sách loại lỗi từ file Excel (.xlsx)
@@ -103,7 +102,7 @@ router.post(
   '/import',
   requireStaff,
   rawFile,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
     }
@@ -119,7 +118,7 @@ router.post(
 
     const result = await importLoaiLoi(pool, rows);
     res.json(result);
-  })
+  }
 );
 
 // GET /api/loailoi/:id/tac-dong - xem trước hệ quả nếu đổi mục đích loại lỗi này.
@@ -128,7 +127,7 @@ router.post(
 //  - so_bao_cao_gan_nhan: khi chuyển sang 'tach_hu_bo' -> gỡ nhãn lỗi chuẩn ở bấy nhiêu báo cáo.
 router.get(
   '/:id/tac-dong',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const id = req.params.id;
     const [ct, nhan] = await Promise.all([
       pool.query(
@@ -142,26 +141,26 @@ router.get(
       tong_so_luong_chi_tiet: Number(ct.rows[0].tong),
       so_bao_cao_gan_nhan: nhan.rows[0].n,
     });
-  })
+  }
 );
 
 // GET /api/loailoi/:id
 router.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`${LOAILOI_SELECT} WHERE ll.id = $1`, [
       req.params.id,
     ]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy loại lỗi');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/loailoi - admin tạo loại lỗi mới cho 1 vật tư
 router.post(
   '/',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ma_vat_tu, ten_loi, la_loi_dac_biet = false } = req.body;
     if (!ma_vat_tu || !ten_loi) {
       throw new AppError(400, 'Thiếu ma_vat_tu hoặc ten_loi');
@@ -179,7 +178,7 @@ router.post(
       [ma_vat_tu, ten_loi, !!la_loi_dac_biet, muc_dich]
     );
     res.status(201).json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/loailoi/:id - admin sửa.
@@ -188,7 +187,7 @@ router.post(
 router.put(
   '/:id',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ten_loi, la_loi_dac_biet } = req.body;
     if (!ten_loi) throw new AppError(400, 'Thiếu ten_loi');
     const muc_dich =
@@ -264,14 +263,14 @@ router.put(
     } finally {
       client.release();
     }
-  })
+  }
 );
 
 // DELETE /api/loailoi/:id - admin xóa (chặn nếu đã có báo cáo đang gán nhãn lỗi này)
 router.delete(
   '/:id',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     try {
       const result = await pool.query('DELETE FROM LoaiLoi WHERE id = $1 RETURNING id', [
         req.params.id,
@@ -287,7 +286,7 @@ router.delete(
       }
       throw err;
     }
-  })
+  }
 );
 
 module.exports = router;

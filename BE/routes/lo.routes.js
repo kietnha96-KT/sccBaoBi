@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -39,7 +38,7 @@ const LO_SELECT = `
 // GET /api/lo - danh sách lô, lọc theo ma_vat_tu / so_lo, co phan trang (mac dinh 15/trang)
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ma_vat_tu, so_lo, thu_kho } = req.query;
     const { page, limit, offset } = getPagination(req.query);
     const conditions = [];
@@ -72,14 +71,14 @@ router.get(
       [...params, limit, offset]
     );
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/lo/export
 router.get(
   '/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`${LO_SELECT} ORDER BY l.id DESC`);
     const rows = result.rows.map((r) => ({
       ...r,
@@ -102,24 +101,24 @@ router.get(
       ],
       rows,
     });
-  })
+  }
 );
 
 // GET /api/lo/:id
 router.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`${LO_SELECT} WHERE l.id = $1`, [req.params.id]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy lô');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/lo - admin tạo lô mới
 router.post(
   '/',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
       throw new AppError(400, 'Thiếu so_lo hoặc ma_vat_tu');
@@ -144,14 +143,14 @@ router.post(
       [so_lo, ma_vat_tu, ngay_san_xuat || null, so_luong_lo ?? 0, ma_ncc || null]
     );
     res.status(201).json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/lo/:id - admin sửa lô
 router.put(
   '/:id',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { so_lo, ma_vat_tu, ngay_san_xuat, so_luong_lo, ma_ncc } = req.body;
     if (!so_lo || !ma_vat_tu) {
       throw new AppError(400, 'Thiếu so_lo hoặc ma_vat_tu');
@@ -194,14 +193,14 @@ router.put(
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy lô');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // DELETE /api/lo/:id - admin xóa lô (chặn nếu đã có báo cáo liên quan)
 router.delete(
   '/:id',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     try {
       const result = await pool.query('DELETE FROM Lo WHERE id = $1 RETURNING id', [
         req.params.id,
@@ -214,7 +213,7 @@ router.delete(
       }
       throw err;
     }
-  })
+  }
 );
 
 module.exports = router;

@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -145,7 +144,7 @@ function buildNhanSuVatTuBreakdownQuery(query) {
 router.get(
   '/nhansu',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoNhanSuQuery(req.query);
     const result = await pool.query(sql, params);
     // summary tinh tren TOAN BO ket qua da loc (khong phai chi trang hien tai) de cac the thong ke luon dung
@@ -156,13 +155,13 @@ router.get(
     };
     const rows = sortRows(result.rows, req.query, THEO_NHANSU_SORT_COLUMNS);
     res.json({ ...paginateArray(rows, req.query), summary });
-  })
+  }
 );
 
 router.get(
   '/nhansu/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoNhanSuQuery(req.query);
     const result = await pool.query(sql, params);
     await sendExcel(res, {
@@ -176,7 +175,7 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // GET /api/dashboard/nhansu/vattu - breakdown theo vật tư cho từng nhân sự
@@ -184,18 +183,18 @@ router.get(
 router.get(
   '/nhansu/vattu',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildNhanSuVatTuBreakdownQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = sortRows(result.rows, req.query, NHANSU_BREAKDOWN_SORT_COLUMNS);
     res.json(paginateArray(rows, req.query));
-  })
+  }
 );
 
 router.get(
   '/nhansu/vattu/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildNhanSuVatTuBreakdownQuery(req.query);
     const result = await pool.query(sql, params);
     await sendExcel(res, {
@@ -211,7 +210,7 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // ================= 2. DASHBOARD THEO VẬT TƯ =================
@@ -256,18 +255,18 @@ function buildTheoVatTuQuery(query) {
 router.get(
   '/vattu',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = sortRows(result.rows, req.query, THEO_VATTU_SORT_COLUMNS);
     res.json(paginateArray(rows, req.query));
-  })
+  }
 );
 
 router.get(
   '/vattu/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
     await sendExcel(res, {
@@ -281,7 +280,7 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // 2b. Breakdown lỗi chuẩn theo TỪNG LÔ của vật tư (dùng để lọc/xem chi tiết trong dashboard theo vật tư)
@@ -331,18 +330,18 @@ function buildLoiTheoVatTuQuery(query) {
 router.get(
   '/vattu/loi',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildLoiTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = sortRows(result.rows, req.query, LOI_THEO_VATTU_SORT_COLUMNS);
     res.json(paginateArray(rows, req.query));
-  })
+  }
 );
 
 router.get(
   '/vattu/loi/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildLoiTheoVatTuQuery(req.query);
     const result = await pool.query(sql, params);
     await sendExcel(res, {
@@ -359,7 +358,7 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // ================= 3. DASHBOARD THEO LÔ =================
@@ -416,12 +415,12 @@ function buildTheoLoQuery(query) {
 router.get(
   '/lo',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = sortRows(result.rows, req.query, LO_SORT_COLUMNS);
     res.json(paginateArray(rows, req.query));
-  })
+  }
 );
 
 // Bảng chi tiết: từng báo cáo LỰA CHÍNH của 1 lô đã bấm (gồm cả báo cáo lỗi đặc biệt,
@@ -429,7 +428,7 @@ router.get(
 router.get(
   '/lo/chi-tiet',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const sql = `
       ${BC_CALC_CTE}
       SELECT
@@ -450,13 +449,13 @@ router.get(
     `;
     const result = await pool.query(sql, [req.query.lo_id]);
     res.json({ data: result.rows });
-  })
+  }
 );
 
 router.get(
   '/lo/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = result.rows.map((r) => ({
@@ -482,7 +481,7 @@ router.get(
       ],
       rows,
     });
-  })
+  }
 );
 
 // ================= 4. BÁO CÔNG (GIỜ LÀM) THEO LÔ =================
@@ -574,7 +573,7 @@ function buildBaoCongTheoLoQuery(query) {
 
 router.get(
   '/baocong-lo',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildBaoCongTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
     // summary tính trên TOÀN BỘ kết quả đã lọc (không chỉ trang hiện tại) - tính trước khi sort
@@ -587,12 +586,12 @@ router.get(
     };
     const rows = sortRows(result.rows, req.query, BAOCONG_LO_SORT_COLUMNS);
     res.json({ ...paginateArray(rows, req.query), summary });
-  })
+  }
 );
 
 router.get(
   '/baocong-lo/export',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildBaoCongTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
     // Xuất phẳng: mỗi dòng = 1 (lô × người), tách giờ lỗi thường / lỗi đặc biệt.
@@ -633,7 +632,7 @@ router.get(
       ],
       rows,
     });
-  })
+  }
 );
 
 // ================= 6. SẢN LƯỢNG & HƯ BỎ (theo lô) =================
@@ -770,7 +769,7 @@ function huBoSummary(rows) {
 router.get(
   '/hu-bo',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildHuBoQuery(req.query);
     const result = await pool.query(sql, params);
     const rows = sortRows(result.rows, req.query, HU_BO_SORT_COLUMNS);
@@ -778,13 +777,13 @@ router.get(
       ...paginateArray(rows, req.query),
       summary: huBoSummary(result.rows),
     });
-  })
+  }
 );
 
 router.get(
   '/hu-bo/chi-tiet',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildHuBoChiTietQuery(req.query);
     const theoLoi = buildHuBoTheoLoiQuery(req.query);
     const [result, theoLoiResult] = await Promise.all([
@@ -792,13 +791,13 @@ router.get(
       pool.query(theoLoi.sql, theoLoi.params),
     ]);
     res.json({ data: result.rows, theo_loi: theoLoiResult.rows });
-  })
+  }
 );
 
 router.get(
   '/hu-bo/export',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { sql, params } = buildHuBoQuery(req.query);
     const bd = buildHuBoTheoLoiTatCaQuery(req.query);
     const [result, bdResult] = await Promise.all([
@@ -845,7 +844,7 @@ router.get(
       ],
       rows,
     });
-  })
+  }
 );
 
 // ================= 7. GIỜ LÀM NHÂN SỰ TRONG NGÀY =================
@@ -875,12 +874,12 @@ function buildGioLamNgayQuery(query) {
 router.get(
   '/gio-lam-ngay',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     if (!req.query.ngay) throw new AppError(400, 'Thiếu ngày');
     const { sql, params } = buildGioLamNgayQuery(req.query);
     const result = await pool.query(sql, params);
     res.json({ data: result.rows });
-  })
+  }
 );
 
 module.exports = router;

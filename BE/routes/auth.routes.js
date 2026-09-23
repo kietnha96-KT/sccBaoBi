@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken } = require('../middleware/auth');
 
@@ -11,7 +10,7 @@ const router = express.Router();
 // POST /api/auth/login - đăng nhập, không có tự đăng ký (admin tạo tài khoản)
 router.post(
   '/login',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
       throw new AppError(400, 'Thiếu username hoặc password');
@@ -42,14 +41,14 @@ router.post(
     });
 
     res.json({ token, user: payload });
-  })
+  }
 );
 
 // GET /api/auth/me - lấy thông tin người đang đăng nhập
 router.get(
   '/me',
   authenticateToken,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(
       'SELECT id, ho_ten, username, vai_tro, created_at FROM NhanSu WHERE id = $1',
       [req.user.id]
@@ -58,14 +57,14 @@ router.get(
       throw new AppError(404, 'Không tìm thấy người dùng');
     }
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/auth/change-password - người dùng tự đổi mật khẩu của mình
 router.put(
   '/change-password',
   authenticateToken,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { mat_khau_cu, mat_khau_moi } = req.body;
     if (!mat_khau_cu || !mat_khau_moi) {
       throw new AppError(400, 'Thiếu mật khẩu cũ hoặc mật khẩu mới');
@@ -94,7 +93,7 @@ router.put(
     ]);
 
     res.json({ message: 'Đổi mật khẩu thành công' });
-  })
+  }
 );
 
 module.exports = router;

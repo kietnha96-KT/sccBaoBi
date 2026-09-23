@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -22,7 +21,7 @@ const rawFile = express.raw({ type: () => true, limit: '15mb' });
 // ?limit=<cao> de lay full danh sach cho dropdown/select (mac dinh 15/trang cho man hinh danh sach)
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { search, loai } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
@@ -48,18 +47,18 @@ router.get(
     );
 
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/vattu/loai-list - danh sách các "loại" khác nhau đang có (dùng đổ vào dropdown lọc)
 router.get(
   '/loai-list',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(
       `SELECT DISTINCT loai FROM VatTu WHERE loai IS NOT NULL AND loai != '' ORDER BY loai ASC`
     );
     res.json(result.rows.map((r) => r.loai));
-  })
+  }
 );
 
 // GET /api/vattu/thu-kho-list - danh sách các "thủ kho" khác nhau đang có (dùng đổ vào dropdown
@@ -67,19 +66,19 @@ router.get(
 // thủ kho đó trong danh mục vật tư).
 router.get(
   '/thu-kho-list',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(
       `SELECT DISTINCT thu_kho FROM VatTu WHERE thu_kho IS NOT NULL AND thu_kho != '' ORDER BY thu_kho ASC`
     );
     res.json(result.rows.map((r) => r.thu_kho));
-  })
+  }
 );
 
 // GET /api/vattu/export
 router.get(
   '/export',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query('SELECT * FROM VatTu ORDER BY ma_vat_tu ASC');
     await sendExcel(res, {
       sheetName: 'VatTu',
@@ -92,26 +91,26 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // GET /api/vattu/:ma_vat_tu
 router.get(
   '/:ma_vat_tu',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query('SELECT * FROM VatTu WHERE ma_vat_tu = $1', [
       req.params.ma_vat_tu,
     ]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy vật tư');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/vattu - admin tạo vật tư mới
 router.post(
   '/',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ma_vat_tu, ten_vat_tu, loai, thu_kho } = req.body;
     if (!ma_vat_tu || !ten_vat_tu) {
       throw new AppError(400, 'Thiếu ma_vat_tu hoặc ten_vat_tu');
@@ -126,7 +125,7 @@ router.post(
       [ma_vat_tu, ten_vat_tu, loai || null, thu_kho || null]
     );
     res.status(201).json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/vattu/import - admin nạp danh sách vật tư từ file Excel (.xlsx)
@@ -136,7 +135,7 @@ router.post(
   '/import',
   requireAdmin,
   rawFile,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
     }
@@ -164,14 +163,14 @@ router.post(
       ],
     });
     res.json(result);
-  })
+  }
 );
 
 // PUT /api/vattu/:ma_vat_tu - admin sửa tên/loại/thủ kho vật tư
 router.put(
   '/:ma_vat_tu',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ten_vat_tu, loai, thu_kho } = req.body;
     if (!ten_vat_tu) throw new AppError(400, 'Thiếu ten_vat_tu');
 
@@ -181,14 +180,14 @@ router.put(
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy vật tư');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // DELETE /api/vattu/:ma_vat_tu - admin xóa vật tư (chặn nếu đã có lô/danh mục lỗi liên quan)
 router.delete(
   '/:ma_vat_tu',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     try {
       const result = await pool.query('DELETE FROM VatTu WHERE ma_vat_tu = $1 RETURNING ma_vat_tu', [
         req.params.ma_vat_tu,
@@ -204,7 +203,7 @@ router.delete(
       }
       throw err;
     }
-  })
+  }
 );
 
 module.exports = router;

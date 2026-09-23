@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -20,7 +19,7 @@ const rawFile = express.raw({ type: () => true, limit: '15mb' });
 // ?limit=<cao> de lay full danh sach cho dropdown/select
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { search } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
@@ -42,14 +41,14 @@ router.get(
     );
 
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/nhacungcap/export
 router.get(
   '/export',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query('SELECT * FROM NhaCungCap ORDER BY ma_ncc ASC');
     await sendExcel(res, {
       sheetName: 'NhaCungCap',
@@ -60,7 +59,7 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // POST /api/nhacungcap/import - admin nạp danh sách nhà cung cấp từ file Excel (.xlsx)
@@ -70,7 +69,7 @@ router.post(
   '/import',
   requireAdmin,
   rawFile,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       throw new AppError(400, 'Không nhận được file. Hãy chọn 1 file Excel (.xlsx).');
     }
@@ -94,26 +93,26 @@ router.post(
       ],
     });
     res.json(result);
-  })
+  }
 );
 
 // GET /api/nhacungcap/:ma_ncc
 router.get(
   '/:ma_ncc',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query('SELECT * FROM NhaCungCap WHERE ma_ncc = $1', [
       req.params.ma_ncc,
     ]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy nhà cung cấp');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/nhacungcap - admin tao nha cung cap moi
 router.post(
   '/',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ma_ncc, ten_ncc } = req.body;
     if (!ma_ncc || !ten_ncc) {
       throw new AppError(400, 'Thiếu ma_ncc hoặc ten_ncc');
@@ -126,14 +125,14 @@ router.post(
       [ma_ncc, ten_ncc]
     );
     res.status(201).json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/nhacungcap/:ma_ncc - admin sua ten nha cung cap
 router.put(
   '/:ma_ncc',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ten_ncc } = req.body;
     if (!ten_ncc) throw new AppError(400, 'Thiếu ten_ncc');
 
@@ -143,14 +142,14 @@ router.put(
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy nhà cung cấp');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // DELETE /api/nhacungcap/:ma_ncc - admin xoa (chan neu da co lo lien quan)
 router.delete(
   '/:ma_ncc',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     try {
       const result = await pool.query(
         'DELETE FROM NhaCungCap WHERE ma_ncc = $1 RETURNING ma_ncc',
@@ -164,7 +163,7 @@ router.delete(
       }
       throw err;
     }
-  })
+  }
 );
 
 module.exports = router;

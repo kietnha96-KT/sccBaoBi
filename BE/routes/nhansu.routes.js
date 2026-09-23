@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -18,7 +17,7 @@ const NHANSU_SORT_COLUMNS = { id: 'id', ho_ten: 'ho_ten', username: 'username', 
 // ?search= tim theo ho_ten hoac username
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { search } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
@@ -38,14 +37,14 @@ router.get(
       [...params, limit, offset]
     );
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/nhansu/export - xuất Excel danh sách nhân sự (admin)
 router.get(
   '/export',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(
       `SELECT ${SAFE_COLUMNS} FROM NhanSu ORDER BY ho_ten ASC`
     );
@@ -61,26 +60,26 @@ router.get(
       ],
       rows: result.rows,
     });
-  })
+  }
 );
 
 // GET /api/nhansu/:id
 router.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`SELECT ${SAFE_COLUMNS} FROM NhanSu WHERE id = $1`, [
       req.params.id,
     ]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy nhân sự');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // POST /api/nhansu - admin tạo tài khoản mới
 router.post(
   '/',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ho_ten, username, password, vai_tro } = req.body;
     if (!ho_ten || !username || !password) {
       throw new AppError(400, 'Thiếu ho_ten, username hoặc password');
@@ -107,14 +106,14 @@ router.post(
       [ho_ten, username, hashed, vai_tro || 'nhan_vien']
     );
     res.status(201).json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/nhansu/:id - admin sửa họ tên / vai trò
 router.put(
   '/:id',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { ho_ten, vai_tro } = req.body;
     if (!ho_ten) throw new AppError(400, 'Thiếu ho_ten');
     if (vai_tro && !['admin', 'nhan_vien', 'thu_kho'].includes(vai_tro)) {
@@ -128,14 +127,14 @@ router.put(
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy nhân sự');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // PUT /api/nhansu/:id/reset-password - admin đặt lại mật khẩu cho nhân sự
 router.put(
   '/:id/reset-password',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { mat_khau_moi } = req.body;
     if (!mat_khau_moi || mat_khau_moi.length < 6) {
       throw new AppError(400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
@@ -147,14 +146,14 @@ router.put(
     );
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy nhân sự');
     res.json({ message: 'Đặt lại mật khẩu thành công' });
-  })
+  }
 );
 
 // DELETE /api/nhansu/:id - admin xóa tài khoản (chặn nếu đã có báo cáo liên quan)
 router.delete(
   '/:id',
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     if (Number(req.params.id) === req.user.id) {
       throw new AppError(400, 'Không thể tự xóa tài khoản của chính mình');
     }
@@ -173,7 +172,7 @@ router.delete(
       }
       throw err;
     }
-  })
+  }
 );
 
 module.exports = router;

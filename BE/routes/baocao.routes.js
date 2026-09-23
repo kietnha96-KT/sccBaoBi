@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
@@ -126,7 +125,7 @@ function buildFilters(query) {
 // GET /api/baocao - danh sách báo cáo, có lọc + phân trang
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { where, params } = buildFilters(req.query);
     const { page, limit, offset } = getPagination(req.query, { maxLimit: 200 });
 
@@ -143,13 +142,13 @@ router.get(
     );
 
     res.json({ data: dataResult.rows, pagination: buildPaginationMeta({ page, limit, total }) });
-  })
+  }
 );
 
 // GET /api/baocao/export - xuất Excel theo cùng bộ lọc với danh sách (không phân trang, tối đa 20000 dòng)
 router.get(
   '/export',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { where, params } = buildFilters(req.query);
     const result = await pool.query(
       `${LIST_SELECT} ${where} ORDER BY bc.ngay DESC, bc.id DESC LIMIT 20000`,
@@ -188,17 +187,17 @@ router.get(
       ],
       rows,
     });
-  })
+  }
 );
 
 // GET /api/baocao/:id
 router.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const result = await pool.query(`${LIST_SELECT} WHERE bc.id = $1`, [req.params.id]);
     if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy báo cáo');
     res.json(result.rows[0]);
-  })
+  }
 );
 
 // Giờ làm việc: định dạng 24h "HH:MM" (00:00 - 23:59), KHÔNG dùng AM/PM.
@@ -367,7 +366,7 @@ async function checkCapacity(client, { lo_id, dat, hu_bo, la_lua_lai, excludeBao
 // POST /api/baocao - nhân viên nhập báo cáo (người đại diện = người đăng nhập)
 router.post(
   '/',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const payload = parseReportBody(req.body);
 
     // Người nhập là NHÂN VIÊN thì tự có mặt trong danh sách tham gia.
@@ -433,7 +432,7 @@ router.post(
     } finally {
       client.release();
     }
-  })
+  }
 );
 
 // Kiểm tra quyền sửa/xóa: CHỈ admin luôn được; nhân viên VÀ thủ kho chỉ được với
@@ -465,7 +464,7 @@ async function assertCanModify(req, baocaoId) {
 //   (nhân viên & thủ kho: phiếu của mình + trong ngày; admin: mọi lúc) - assertCanModify đã kiểm.
 router.put(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const baocaoId = req.params.id;
     await assertCanModify(req, baocaoId);
 
@@ -530,13 +529,13 @@ router.put(
     } finally {
       client.release();
     }
-  })
+  }
 );
 
 // DELETE /api/baocao/:id
 router.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const baocaoId = req.params.id;
     await assertCanModify(req, baocaoId);
 
@@ -554,14 +553,14 @@ router.delete(
     } finally {
       client.release();
     }
-  })
+  }
 );
 
 // PATCH /api/baocao/:id/loi-chuan - admin & thủ kho gán/sửa/gỡ nhãn lỗi chuẩn
 router.patch(
   '/:id/loi-chuan',
   requireStaff,
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { loi_chuan_id } = req.body;
     const baocaoId = req.params.id;
 
@@ -589,7 +588,7 @@ router.patch(
 
     const full = await pool.query(`${LIST_SELECT} WHERE bc.id = $1`, [baocaoId]);
     res.json(full.rows[0]);
-  })
+  }
 );
 
 module.exports = router;
