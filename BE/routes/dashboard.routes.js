@@ -202,10 +202,12 @@ router.get(
       fileName: 'dashboard_nhan_su_theo_vat_tu',
       columns: [
         { header: 'Nhân sự', key: 'ho_ten', width: 24 },
+        { header: 'Số lô', key: 'so_lo', width: 10 },
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 14 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
+        { header: 'Loại lỗi', key: 'ten_loi', width: 30 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
       ],
       rows: result.rows,
@@ -287,7 +289,10 @@ router.get(
 // Moi dong = 1 lo cu the (so_lo lay tu danh muc Lo) + 1 loai loi cu the, cac chi so con lai
 // (nang suat, tong dat/hu bo/lua, ty le hu bo) chi tinh tren bao cao thuoc DUNG lo + DUNG loi do
 // - khong gop chung nhieu lo lai thanh 1 dong dem so luong nhu truoc.
-function buildLoiTheoVatTuQuery(query) {
+// chiTiet = true (chỉ dùng cho export): thêm cột chi_tiet_loi = số hư bỏ tách theo từng loại lỗi
+// đi kèm (BaoCao_LoiChiTiet), cộng dồn qua các báo cáo của đúng dòng đó (cùng lô + cùng lỗi chuẩn,
+// cùng bộ lọc). Lấy qua mảng id báo cáo của nhóm nên KHÔNG đổi COUNT/AVG của dòng chính.
+function buildLoiTheoVatTuQuery(query, { chiTiet = false } = {}) {
   const params = [];
   let where = 'WHERE 1=1';
   where += ` ${laLuaLaiClause(query, params)}`;

@@ -33,17 +33,7 @@ CREATE TABLE IF NOT EXISTS BaoCao_LoiChiTiet (
 CREATE INDEX IF NOT EXISTS idx_baocao_loichitiet_baocao_id ON BaoCao_LoiChiTiet(baocao_id);
 CREATE INDEX IF NOT EXISTS idx_baocao_loichitiet_loai_loi_id ON BaoCao_LoiChiTiet(loai_loi_id);
 
--- 3) Dọn nhãn lỗi chuẩn cũ: loại lỗi 'tach_hu_bo' không còn là nhãn hợp lệ nên
---    gỡ khỏi mọi báo cáo đang trỏ tới (dropdown "gắn lỗi chuẩn" cũng ẩn nó).
-UPDATE BaoCao
-SET loi_chuan_id = NULL
-WHERE loi_chuan_id IN (SELECT id FROM LoaiLoi WHERE muc_dich = 'tach_hu_bo');
-
--- 4) Lỗi đặc biệt là thao tác nội bộ, báo cáo gọi đích danh, và cơ chế loại khỏi tổng
---    lô chạy theo nhãn lỗi chuẩn -> khóa muc_dich = 'gan_nhan'.
-UPDATE LoaiLoi SET muc_dich = 'gan_nhan' WHERE la_loi_dac_biet = TRUE AND muc_dich <> 'gan_nhan';
-
--- 5) Dòng hư bỏ chi tiết trỏ tới loại lỗi giờ chỉ 'gan_nhan' (không còn để tách) ->
---    xóa; số lượng dồn về "chưa phân loại" (BaoCao.hu_bo không đổi).
-DELETE FROM BaoCao_LoiChiTiet
-WHERE loai_loi_id IN (SELECT id FROM LoaiLoi WHERE muc_dich = 'gan_nhan');
+-- LƯU Ý: bản gốc còn 3 bước dọn dữ liệu 1 lần ngay sau đây (gỡ nhãn lỗi chuẩn của loại 'tach_hu_bo',
+-- ép lỗi đặc biệt về muc_dich = 'gan_nhan', xóa dòng hư bỏ chi tiết của loại 'gan_nhan').
+-- Đã chạy trên prod từ trước và ĐÃ BỎ khỏi file này để chạy lại file này KHÔNG đụng vào dữ liệu.
+-- Giờ loại lỗi đã có dữ liệu thì bị khóa mục đích (BE từ chối đổi), không còn tự dọn dữ liệu.

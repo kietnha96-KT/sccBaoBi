@@ -121,26 +121,31 @@ router.post(
   }
 );
 
-// GET /api/loailoi/:id/tac-dong - xem trước hệ quả nếu đổi mục đích loại lỗi này.
-//  - so_bao_cao_chi_tiet / tong_so_luong_chi_tiet: khi chuyển sang 'gan_nhan' -> xóa bấy nhiêu
-//    dòng hư bỏ chi tiết (số nhân viên đã nhập).
-//  - so_bao_cao_gan_nhan: khi chuyển sang 'tach_hu_bo' -> gỡ nhãn lỗi chuẩn ở bấy nhiêu báo cáo.
+// Đếm dữ liệu đang dùng 1 loại lỗi: báo cáo gán nhãn nó (loi_chuan_id) + dòng hư bỏ chi tiết.
+// Có dữ liệu = loại lỗi bị KHÓA "bản chất" (mục đích, cờ lỗi đặc biệt), chỉ còn đổi tên được.
+// Chạy tuần tự (không Promise.all) vì có thể nhận 1 client trong transaction.
+async function demSuDung(db, id) {
+  const nhan = await db.query('SELECT COUNT(*)::int AS n FROM BaoCao WHERE loi_chuan_id = $1', [id]);
+  const ct = await db.query(
+    'SELECT COUNT(*)::int AS n, COALESCE(SUM(so_luong), 0) AS tong FROM BaoCao_LoiChiTiet WHERE loai_loi_id = $1',
+    [id]
+  );
+  const soNhan = nhan.rows[0].n;
+  const soChiTiet = ct.rows[0].n;
+  return {
+    so_bao_cao_gan_nhan: soNhan,
+    so_bao_cao_chi_tiet: soChiTiet,
+    tong_so_luong_chi_tiet: Number(ct.rows[0].tong),
+    da_co_du_lieu: soNhan > 0 || soChiTiet > 0,
+  };
+}
+
+// GET /api/loailoi/:id/su-dung - loại lỗi này đã có dữ liệu dùng chưa (FE dùng để khóa ô
+// mục đích / lỗi đặc biệt trong form sửa, kèm lý do).
 router.get(
-  '/:id/tac-dong',
+  '/:id/su-dung',
   async (req, res) => {
-    const id = req.params.id;
-    const [ct, nhan] = await Promise.all([
-      pool.query(
-        'SELECT COUNT(*)::int AS n, COALESCE(SUM(so_luong), 0) AS tong FROM BaoCao_LoiChiTiet WHERE loai_loi_id = $1',
-        [id]
-      ),
-      pool.query('SELECT COUNT(*)::int AS n FROM BaoCao WHERE loi_chuan_id = $1', [id]),
-    ]);
-    res.json({
-      so_bao_cao_chi_tiet: ct.rows[0].n,
-      tong_so_luong_chi_tiet: Number(ct.rows[0].tong),
-      so_bao_cao_gan_nhan: nhan.rows[0].n,
-    });
+    res.json(await demSuDung(pool, req.params.id));
   }
 );
 
@@ -181,82 +186,68 @@ router.post(
   }
 );
 
-// PUT /api/loailoi/:id - admin sửa.
-// Nếu loại lỗi thành 'tach_hu_bo' -> gỡ nhãn lỗi chuẩn ở mọi báo cáo đang trỏ tới nó
-// (loại lỗi chỉ-để-tách không còn là nhãn hợp lệ; dropdown "gắn lỗi chuẩn" cũng ẩn nó).
+// PUT /api/loailoi/:id - sửa loại lỗi (admin / thủ kho).
+// Loại lỗi CHƯA có dữ liệu dùng: đổi tự do (tên, mục đích, cờ lỗi đặc biệt).
+// Loại lỗi ĐÃ có dữ liệu dùng (báo cáo gán nhãn hoặc hư bỏ chi tiết): "bản chất" bị KHÓA -
+// chỉ đổi được tên. Đổi mục đích / bật-tắt cờ đặc biệt sẽ diễn giải lại toàn bộ lịch sử
+// (mất dữ liệu, hoặc đẩy số lượng sang phần khác của lô làm vượt trần) nên bị TỪ CHỐI (409).
+// Muốn dùng theo cách khác -> tạo loại lỗi mới.
 router.put(
   '/:id',
   requireStaff,
   async (req, res) => {
     const { ten_loi, la_loi_dac_biet } = req.body;
     if (!ten_loi) throw new AppError(400, 'Thiếu ten_loi');
-    const muc_dich =
+    const mucDichGui =
       req.body.muc_dich === undefined ? null : chuanHoaMucDich(req.body.muc_dich);
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      const result = await client.query(
-        `UPDATE LoaiLoi
-         SET ten_loi = $1,
-             la_loi_dac_biet = COALESCE($2, la_loi_dac_biet),
-             muc_dich = CASE
-               WHEN COALESCE($2, la_loi_dac_biet) = TRUE THEN 'gan_nhan'
-               ELSE COALESCE($3, muc_dich)
-             END
-         WHERE id = $4 RETURNING *`,
-        [ten_loi, la_loi_dac_biet ?? null, muc_dich, req.params.id]
-      );
-      if (!result.rows[0]) throw new AppError(404, 'Không tìm thấy loại lỗi');
+      // Khóa dòng để lúc kiểm tra "đã có dữ liệu chưa" không bị báo cáo mới chen vào (khóa
+      // khóa-ngoại của báo cáo mới phải chờ transaction này).
+      const cur = await client.query('SELECT * FROM LoaiLoi WHERE id = $1 FOR UPDATE', [
+        req.params.id,
+      ]);
+      const hienTai = cur.rows[0];
+      if (!hienTai) throw new AppError(404, 'Không tìm thấy loại lỗi');
 
-      // Dọn cho khớp mục đích mới. Trước khi xóa/gỡ -> chép dữ liệu sắp mất vào bảng lưu vết.
-      const mucDichMoi = result.rows[0].muc_dich;
-      const boiId = req.user?.id ?? null;
-      const boiTen = req.user?.ho_ten ?? null;
-      let go_nhan = 0;
-      let go_chi_tiet = 0;
-      if (mucDichMoi === 'tach_hu_bo') {
-        // Không còn là nhãn hợp lệ -> gỡ khỏi mọi báo cáo đang gán (lưu vết nhãn cũ).
-        await client.query(
-          `INSERT INTO BaoCao_Loi_LichSuXoa
-             (loai, baocao_id, lo_id, so_lo, hu_bo_goc, loai_loi_id, ten_loi, so_luong, xoa_boi_id, xoa_boi_ten)
-           SELECT 'nhan_loi_chuan', bc.id, bc.lo_id, l.so_lo, bc.hu_bo, ll.id, ll.ten_loi, NULL, $2, $3
-           FROM BaoCao bc
-           JOIN Lo l ON l.id = bc.lo_id
-           JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
-           WHERE bc.loi_chuan_id = $1`,
-          [req.params.id, boiId, boiTen]
-        );
-        const upd = await client.query(
-          'UPDATE BaoCao SET loi_chuan_id = NULL WHERE loi_chuan_id = $1',
-          [req.params.id]
-        );
-        go_nhan = upd.rowCount;
+      // Giá trị sau khi sửa. Lỗi đặc biệt luôn khóa mục đích = 'gan_nhan'.
+      const dacBietMoi = !!(la_loi_dac_biet ?? hienTai.la_loi_dac_biet);
+      const mucDichMoi = dacBietMoi ? 'gan_nhan' : mucDichGui ?? hienTai.muc_dich;
+
+      const doi = [];
+      if (dacBietMoi !== hienTai.la_loi_dac_biet) doi.push('cờ "lỗi đặc biệt"');
+      if (mucDichMoi !== hienTai.muc_dich) doi.push('mục đích dùng');
+
+      if (doi.length) {
+        const sd = await demSuDung(client, req.params.id);
+        if (sd.da_co_du_lieu) {
+          const dangDung = [];
+          if (sd.so_bao_cao_gan_nhan > 0) {
+            dangDung.push(`${sd.so_bao_cao_gan_nhan} báo cáo đang gán nhãn này`);
+          }
+          if (sd.so_bao_cao_chi_tiet > 0) {
+            dangDung.push(
+              `${sd.so_bao_cao_chi_tiet} báo cáo có hư bỏ chi tiết loại lỗi này`
+            );
+          }
+          throw new AppError(
+            409,
+            `Không thể đổi ${doi.join(' và ')} của loại lỗi "${hienTai.ten_loi}" vì đã có dữ liệu dùng: ${dangDung.join('; ')}. ` +
+              'Loại lỗi đã có dữ liệu chỉ được đổi tên. Nếu cần dùng theo cách khác, hãy tạo loại lỗi mới.'
+          );
+        }
       }
-      if (mucDichMoi === 'gan_nhan') {
-        // Không còn để tách hư bỏ -> xóa dòng chi tiết cũ (số lượng dồn về "chưa phân loại"),
-        // lưu vết từng dòng: báo cáo nào, lỗi gì, số lượng bao nhiêu.
-        await client.query(
-          `INSERT INTO BaoCao_Loi_LichSuXoa
-             (loai, baocao_id, lo_id, so_lo, hu_bo_goc, loai_loi_id, ten_loi, so_luong, xoa_boi_id, xoa_boi_ten)
-           SELECT 'chi_tiet_hu_bo', ct.baocao_id, bc.lo_id, l.so_lo, bc.hu_bo, ll.id, ll.ten_loi, ct.so_luong, $2, $3
-           FROM BaoCao_LoiChiTiet ct
-           JOIN BaoCao bc ON bc.id = ct.baocao_id
-           JOIN Lo l ON l.id = bc.lo_id
-           JOIN LoaiLoi ll ON ll.id = ct.loai_loi_id
-           WHERE ct.loai_loi_id = $1`,
-          [req.params.id, boiId, boiTen]
-        );
-        const del = await client.query(
-          'DELETE FROM BaoCao_LoiChiTiet WHERE loai_loi_id = $1',
-          [req.params.id]
-        );
-        go_chi_tiet = del.rowCount;
-      }
+
+      const result = await client.query(
+        'UPDATE LoaiLoi SET ten_loi = $1, la_loi_dac_biet = $2, muc_dich = $3 WHERE id = $4 RETURNING *',
+        [ten_loi, dacBietMoi, mucDichMoi, req.params.id]
+      );
 
       await client.query('COMMIT');
-      res.json({ ...result.rows[0], _go_nhan_loi_chuan: go_nhan, _go_chi_tiet_hu_bo: go_chi_tiet });
+      res.json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

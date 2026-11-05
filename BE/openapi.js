@@ -148,6 +148,7 @@ const spec = {
           tg_ket_thuc: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$', example: '17:00', nullable: true, description: 'Định dạng 24 giờ HH:MM, phải sau tg_bat_dau (cùng ngày).' },
           loi_nguoi_dung: { type: 'string', nullable: true, description: 'Ghi chú lỗi tự do; sửa được cả khi PUT nếu còn quyền sửa phiếu' },
           la_lua_lai: { type: 'boolean', default: false },
+          loi_dac_biet_id: { type: 'integer', nullable: true, description: 'Lỗi ĐẶC BIỆT (LoaiLoi.la_loi_dac_biet) của vật tư, người nhập chọn; ghi vào loi_chuan_id. Mỗi lỗi đặc biệt có trần riêng = so_luong_lo của lô, không dùng cùng lúc với la_lua_lai.' },
           ghi_chu: { type: 'string', nullable: true },
           nhansu_ids: {
             type: 'array',

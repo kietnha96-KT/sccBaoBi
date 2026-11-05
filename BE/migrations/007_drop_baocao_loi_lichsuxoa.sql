@@ -1,0 +1,17 @@
+-- XÓA bảng lưu vết BaoCao_Loi_LichSuXoa (từng được tạo ở migration 006 - file 006 đã xóa khỏi
+-- repo; file này vẫn CẦN giữ vì prod còn bảng đó. DB mới dựng từ đầu thì không có bảng -> no-op).
+--
+-- Lý do: cơ chế "đổi mục đích loại lỗi -> hệ thống tự dọn dữ liệu rồi ghi lưu vết" đã bỏ.
+-- Loại lỗi đã có dữ liệu dùng thì bị KHÓA mục đích + cờ lỗi đặc biệt (chỉ đổi tên được),
+-- nên không còn thao tác nào xóa dữ liệu để lưu vết. Bảng này (không FK, không ai đọc) trống
+-- trên prod tại thời điểm kiểm tra 2026-11-05.
+--
+-- !! THỨ TỰ DEPLOY NGƯỢC với các migration thêm cột/bảng (quy ước #8 trong CLAUDE.md) !!
+--    1) DEPLOY CODE TRƯỚC (code mới không còn INSERT vào bảng này).
+--    2) CHẠY FILE NÀY LÊN PROD SAU:
+--         DATABASE_URL="postgres://..." node scripts/run-schema.js migrations/007_drop_baocao_loi_lichsuxoa.sql
+--    Nếu xóa bảng TRƯỚC khi deploy, code cũ trên prod còn câu INSERT -> đổi mục đích loại lỗi
+--    trong khoảng đó sẽ lỗi 500.
+--
+-- Index idx_lichsuxoa_* bị xóa theo bảng.
+DROP TABLE IF EXISTS BaoCao_Loi_LichSuXoa;

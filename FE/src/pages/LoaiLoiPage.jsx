@@ -4,7 +4,7 @@ import {
   createLoaiLoi,
   updateLoaiLoi,
   deleteLoaiLoi,
-  loaiLoiTacDong,
+  loaiLoiSuDung,
 } from '../api/loailoiApi';
 import { listVatTu, listThuKho } from '../api/vattuApi';
 import { downloadExcel, getErrorMessage } from '../api/client';
@@ -62,13 +62,14 @@ export default function LoaiLoiPage() {
   const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Số báo cáo bị ảnh hưởng nếu đổi mục đích loại lỗi đang sửa (nạp khi mở form sửa).
-  const [tacDong, setTacDong] = useState(null);
+  // Loại lỗi đang sửa đã có dữ liệu dùng chưa (nạp khi mở form sửa). Có dữ liệu thì khóa
+  // mục đích + cờ lỗi đặc biệt, chỉ cho đổi tên (backend cũng từ chối nếu cố đổi).
+  const [suDung, setSuDung] = useState(null);
 
   function openCreate() {
     setForm({ ma_vat_tu: filters.ma_vat_tu || '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
     setFormError('');
-    setTacDong(null);
+    setSuDung(null);
     setModal('create');
   }
 
@@ -81,56 +82,19 @@ export default function LoaiLoiPage() {
       muc_dich: row.la_loi_dac_biet ? 'gan_nhan' : row.muc_dich || 'gan_nhan',
     });
     setFormError('');
-    setTacDong(null);
+    setSuDung(null);
     setModal({ edit: row });
-    loaiLoiTacDong(row.id)
-      .then(setTacDong)
-      .catch(() => setTacDong(null));
+    loaiLoiSuDung(row.id)
+      .then(setSuDung)
+      .catch(() => setSuDung(null));
   }
 
-  // Đổi mục đích loại lỗi -> hệ thống tự dọn dữ liệu. Mô tả hệ quả (dùng cho cảnh báo trong
-  // form và confirm khi lưu). Trả null nếu không có gì bị dọn.
-  function moTaHeQua() {
-    if (modal === 'create' || !tacDong) return null;
-    const ten = modal?.edit?.ten_loi || 'loại lỗi này';
-    if (form.muc_dich === 'gan_nhan' && tacDong.so_bao_cao_chi_tiet > 0) {
-      return {
-        kieu: 'xoa_chi_tiet',
-        soBaoCao: tacDong.so_bao_cao_chi_tiet,
-        tong: tacDong.tong_so_luong_chi_tiet,
-        tieuDe: 'Thao tác này sẽ XÓA HẾT dữ liệu hư bỏ chi tiết',
-        dong: [
-          `Đổi mục đích "${ten}" sang "Gán nhãn" sẽ xóa phần Hư bỏ chi tiết đã nhập ở ${tacDong.so_bao_cao_chi_tiet} báo cáo (tổng ${formatSoLuong(tacDong.tong_so_luong_chi_tiet)} sản phẩm).`,
-          'KHÔNG hoàn tác lại được.',
-        ],
-      };
-    }
-    if (form.muc_dich === 'tach_hu_bo' && tacDong.so_bao_cao_gan_nhan > 0) {
-      return {
-        kieu: 'go_nhan',
-        soBaoCao: tacDong.so_bao_cao_gan_nhan,
-        tieuDe: 'Thao tác này sẽ GỠ lỗi đã gán nhãn',
-        dong: [
-          `Đổi mục đích "${ten}" sang "Tách hư bỏ" sẽ gỡ lỗi đã gán nhãn này khỏi ${tacDong.so_bao_cao_gan_nhan} báo cáo.`,
-          'KHÔNG hoàn tác lại được.',
-        ],
-      };
-    }
-    return null;
-  }
-
-  const heQua = modal?.edit ? moTaHeQua() : null;
+  // Đã có dữ liệu dùng -> khóa "bản chất" (mục đích, lỗi đặc biệt), chỉ đổi tên được.
+  const daKhoa = !!(modal?.edit && suDung?.da_co_du_lieu);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
-
-    if (heQua) {
-      const loi = ['⚠️  ' + heQua.tieuDe, '', ...heQua.dong, '', 'Bấm OK để tiếp tục, Cancel để giữ nguyên.'].join(
-        '\n'
-      );
-      if (!confirm(loi)) return;
-    }
 
     setSaving(true);
     try {
@@ -272,13 +236,20 @@ export default function LoaiLoiPage() {
           <form onSubmit={handleSubmit}>
             <Alert>{formError}</Alert>
 
-            {heQua && (
+            {daKhoa && (
               <div className="alert alert-warning">
-                <strong>⚠️ {heQua.tieuDe}</strong>
+                <strong>Loại lỗi này đã có dữ liệu nên chỉ được đổi tên.</strong>
                 <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-                  {heQua.dong.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
+                  {suDung.so_bao_cao_gan_nhan > 0 && (
+                    <li>{suDung.so_bao_cao_gan_nhan} báo cáo đang gán nhãn này.</li>
+                  )}
+                  {suDung.so_bao_cao_chi_tiet > 0 && (
+                    <li>
+                      {suDung.so_bao_cao_chi_tiet} báo cáo có hư bỏ chi tiết loại lỗi này (tổng{' '}
+                      {formatSoLuong(suDung.tong_so_luong_chi_tiet)} sản phẩm).
+                    </li>
+                  )}
+                  <li>Muốn dùng theo cách khác (mục đích, lỗi đặc biệt), hãy tạo loại lỗi mới.</li>
                 </ul>
               </div>
             )}
@@ -300,16 +271,18 @@ export default function LoaiLoiPage() {
                 <select
                   value={form.muc_dich}
                   onChange={(e) => setForm({ ...form, muc_dich: e.target.value })}
-                  disabled={form.la_loi_dac_biet}
+                  disabled={form.la_loi_dac_biet || daKhoa}
                 >
                   <option value="gan_nhan">Gán nhãn (lỗi chuẩn cho báo cáo)</option>
                   <option value="tach_hu_bo">Tách hư bỏ (nhập số lượng chi tiết)</option>
                   <option value="ca_hai">Cả hai</option>
                 </select>
                 <span className="field-hint">
-                  {form.la_loi_dac_biet
-                    ? 'Lỗi đặc biệt luôn khóa ở "Gán nhãn".'
-                    : '"Tách hư bỏ" / "Cả hai" sẽ hiện ô nhập số lượng trong form báo cáo xử lý.'}
+                  {daKhoa
+                    ? 'Đã khóa vì loại lỗi này đã có dữ liệu.'
+                    : form.la_loi_dac_biet
+                      ? 'Lỗi đặc biệt luôn khóa ở "Gán nhãn".'
+                      : '"Tách hư bỏ" / "Cả hai" sẽ hiện ô nhập số lượng trong form báo cáo xử lý.'}
                 </span>
               </div>
               <div className="field">
@@ -317,6 +290,7 @@ export default function LoaiLoiPage() {
                   <input
                     type="checkbox"
                     checked={form.la_loi_dac_biet}
+                    disabled={daKhoa}
                     onChange={(e) =>
                       setForm({
                         ...form,
