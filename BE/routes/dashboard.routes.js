@@ -6,11 +6,11 @@ const { sendExcel } = require('../utils/excelExport');
 const { BC_CALC_CTE } = require('../utils/productivity');
 const { paginateArray } = require('../utils/pagination');
 const { sortRows } = require('../utils/sort');
-const { LO_DA_LUA_JOIN, dacBietToText } = require('../utils/loiDacBiet');
+const { LO_DA_LUA_JOIN, noiBoToText } = require('../utils/loiNoiBo');
 
 // whitelist cột được phép sort cho từng bảng dashboard - key khớp field FE nhận trong result.data
 const LO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', da_lua: 'da_lua', con_lai: 'con_lai', so_bao_cao: 'so_bao_cao' };
-const BAOCONG_LO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', tong_gio_lam: 'tong_gio_lam', gio_thuong: 'gio_thuong', gio_dac_biet: 'gio_dac_biet' };
+const BAOCONG_LO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', tong_gio_lam: 'tong_gio_lam', gio_thuong: 'gio_thuong', gio_noi_bo: 'gio_noi_bo' };
 const HU_BO_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', so_lo: 'so_lo', so_luong_lo: 'so_luong_lo', tong_hu_bo: 'tong_hu_bo', ty_le_hu_bo_pct: 'ty_le_hu_bo_pct' };
 const THEO_VATTU_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
 const LOI_THEO_VATTU_SORT_COLUMNS = { ma_vat_tu: 'ma_vat_tu', ten_vat_tu: 'ten_vat_tu', so_lo: 'so_lo', ten_ncc: 'ten_ncc', ten_loi: 'ten_loi', so_bao_cao: 'so_bao_cao', nang_suat_tb: 'nang_suat_tb' };
@@ -397,7 +397,7 @@ function buildTheoLoQuery(query) {
       l.id AS lo_id, l.so_lo, l.ma_vat_tu, v.ten_vat_tu, l.ngay_san_xuat, l.so_luong_lo,
       n.ten_ncc,
       COALESCE(dl.da_lua, 0) AS da_lua,
-      COALESCE(dl.da_lua_dac_biet, '[]') AS da_lua_dac_biet,
+      COALESCE(dl.da_lua_noi_bo, '[]') AS da_lua_noi_bo,
       l.so_luong_lo - COALESCE(dl.da_lua, 0) AS con_lai,
       COALESCE(agg.so_bao_cao, 0) AS so_bao_cao,
       agg.nang_suat_tb
@@ -428,7 +428,7 @@ router.get(
   }
 );
 
-// Bảng chi tiết: từng báo cáo LỰA CHÍNH của 1 lô đã bấm (gồm cả báo cáo lỗi đặc biệt,
+// Bảng chi tiết: từng báo cáo LỰA CHÍNH của 1 lô đã bấm (gồm cả báo cáo lỗi nội bộ,
 // có đánh dấu). Dùng cho popup "Xem" ở Dashboard tiến độ theo lô.
 router.get(
   '/lo/chi-tiet',
@@ -441,7 +441,7 @@ router.get(
         bcns.nang_suat_8h,
         COALESCE(ll.ten_loi, bcns.loi_nguoi_dung) AS ten_loi,
         (ll.ten_loi IS NOT NULL) AS da_gan_nhan,
-        COALESCE(ll.la_loi_dac_biet, FALSE) AS la_loi_dac_biet,
+        COALESCE(ll.la_loi_noi_bo, FALSE) AS la_loi_noi_bo,
         (
           SELECT string_agg(n2.ho_ten, ', ' ORDER BY n2.ho_ten)
           FROM BaoCao_NhanSu bn2 JOIN NhanSu n2 ON n2.id = bn2.nhansu_id
@@ -465,7 +465,7 @@ router.get(
     const result = await pool.query(sql, params);
     const rows = result.rows.map((r) => ({
       ...r,
-      _dac_biet_txt: dacBietToText(r.da_lua_dac_biet),
+      _noi_bo_txt: noiBoToText(r.da_lua_noi_bo),
     }));
     await sendExcel(res, {
       sheetName: 'NangSuatLo',
@@ -478,8 +478,8 @@ router.get(
         { header: 'Ngày sản xuất', key: 'ngay_san_xuat', width: 16 },
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 22 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 14 },
-        { header: 'Đã lựa (không tính lỗi đặc biệt)', key: 'da_lua', width: 22 },
-        { header: 'Lỗi đặc biệt (chi tiết)', key: '_dac_biet_txt', width: 32 },
+        { header: 'Đã lựa (không tính lỗi nội bộ)', key: 'da_lua', width: 22 },
+        { header: 'Lỗi nội bộ (chi tiết)', key: '_noi_bo_txt', width: 32 },
         { header: 'Còn lại', key: 'con_lai', width: 14 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 14 },
         { header: 'Năng suất TB (8h)', key: 'nang_suat_tb', width: 18 },
@@ -491,8 +491,8 @@ router.get(
 
 // ================= 4. BÁO CÔNG (GIỜ LÀM) THEO LÔ =================
 // Khác các dashboard trên (chỉ đo năng suất). Ở đây gom TỔNG GIỜ LÀM của từng lô, tách
-// làm 2: giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI ĐẶC BIỆT
-// (LoaiLoi.la_loi_dac_biet). Báo cáo nhiều người thì giờ chia đều cho từng người rồi
+// làm 2: giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI NỘI BỘ
+// (LoaiLoi.la_loi_noi_bo). Báo cáo nhiều người thì giờ chia đều cho từng người rồi
 // cộng dồn -> tổng các phần chia đều = tổng giờ của lô.
 // Phạm vi: TOÀN BỘ lịch sử của lô (không lọc ngày). CHỈ tính báo cáo LỰA CHÍNH
 // (la_lua_lai = FALSE), có đủ giờ + có nhân sự.
@@ -518,7 +518,7 @@ function buildBaoCongTheoLoQuery(query) {
 
   // gio_lam mỗi người của 1 báo cáo = gio_lam / so_nhansu
   const gioNguoi = 'bcns.gio_lam / NULLIF(bcns.so_nhansu, 0)';
-  const laDacBiet = 'll.la_loi_dac_biet IS TRUE';
+  const laNoiBo = 'll.la_loi_noi_bo IS TRUE';
 
   const sql = `
     ${BC_CALC_CTE}
@@ -526,8 +526,8 @@ function buildBaoCongTheoLoQuery(query) {
       SELECT bcns.lo_id, ns.id AS nhansu_id, ns.ho_ten,
         COUNT(*) AS so_bao_cao,
         SUM(${gioNguoi}) AS gio,
-        SUM(${gioNguoi}) FILTER (WHERE ${laDacBiet}) AS gio_dac_biet,
-        SUM(${gioNguoi}) FILTER (WHERE NOT (${laDacBiet})) AS gio_thuong
+        SUM(${gioNguoi}) FILTER (WHERE ${laNoiBo}) AS gio_noi_bo,
+        SUM(${gioNguoi}) FILTER (WHERE NOT (${laNoiBo})) AS gio_thuong
       FROM bc_nang_suat bcns
       JOIN BaoCao_NhanSu bn ON bn.baocao_id = bcns.id
       JOIN NhanSu ns ON ns.id = bn.nhansu_id
@@ -540,7 +540,7 @@ function buildBaoCongTheoLoQuery(query) {
       bc_agg.so_bao_cao,
       ROUND(bc_agg.tong_gio_lam::numeric, 2) AS tong_gio_lam,
       ROUND(COALESCE(bc_agg.gio_thuong, 0)::numeric, 2) AS gio_thuong,
-      ROUND(COALESCE(bc_agg.gio_dac_biet, 0)::numeric, 2) AS gio_dac_biet,
+      ROUND(COALESCE(bc_agg.gio_noi_bo, 0)::numeric, 2) AS gio_noi_bo,
       COALESCE(pp.so_nguoi, 0) AS so_nguoi,
       COALESCE(pp.chi_tiet, '[]') AS chi_tiet_nguoi
     FROM Lo l
@@ -549,8 +549,8 @@ function buildBaoCongTheoLoQuery(query) {
     LEFT JOIN (
       SELECT bcns.lo_id, COUNT(*) AS so_bao_cao,
         SUM(bcns.gio_lam) AS tong_gio_lam,
-        SUM(bcns.gio_lam) FILTER (WHERE ${laDacBiet}) AS gio_dac_biet,
-        SUM(bcns.gio_lam) FILTER (WHERE NOT (${laDacBiet})) AS gio_thuong
+        SUM(bcns.gio_lam) FILTER (WHERE ${laNoiBo}) AS gio_noi_bo,
+        SUM(bcns.gio_lam) FILTER (WHERE NOT (${laNoiBo})) AS gio_thuong
       FROM bc_nang_suat bcns
       LEFT JOIN LoaiLoi ll ON ll.id = bcns.loi_chuan_id
       WHERE bcns.gio_lam IS NOT NULL AND bcns.so_nhansu > 0 AND bcns.la_lua_lai = FALSE
@@ -563,7 +563,7 @@ function buildBaoCongTheoLoQuery(query) {
             'nhansu_id', nhansu_id, 'ho_ten', ho_ten, 'so_bao_cao', so_bao_cao,
             'gio', ROUND(gio::numeric, 2),
             'gio_thuong', ROUND(COALESCE(gio_thuong, 0)::numeric, 2),
-            'gio_dac_biet', ROUND(COALESCE(gio_dac_biet, 0)::numeric, 2)
+            'gio_noi_bo', ROUND(COALESCE(gio_noi_bo, 0)::numeric, 2)
           )
           ORDER BY gio DESC
         ) AS chi_tiet
@@ -586,7 +586,7 @@ router.get(
       so_lo: result.rows.length,
       tong_gio_lam: result.rows.reduce((s, r) => s + Number(r.tong_gio_lam || 0), 0),
       gio_thuong: result.rows.reduce((s, r) => s + Number(r.gio_thuong || 0), 0),
-      gio_dac_biet: result.rows.reduce((s, r) => s + Number(r.gio_dac_biet || 0), 0),
+      gio_noi_bo: result.rows.reduce((s, r) => s + Number(r.gio_noi_bo || 0), 0),
       tong_bao_cao: result.rows.reduce((s, r) => s + Number(r.so_bao_cao || 0), 0),
     };
     const rows = sortRows(result.rows, req.query, BAOCONG_LO_SORT_COLUMNS);
@@ -599,21 +599,21 @@ router.get(
   async (req, res) => {
     const { sql, params } = buildBaoCongTheoLoQuery(req.query);
     const result = await pool.query(sql, params);
-    // Xuất phẳng: mỗi dòng = 1 (lô × người), tách giờ lỗi thường / lỗi đặc biệt.
+    // Xuất phẳng: mỗi dòng = 1 (lô × người), tách giờ lỗi thường / lỗi nội bộ.
     const rows = [];
     for (const lo of result.rows) {
       const ct = lo.chi_tiet_nguoi || [];
       const base = {
         ma_vat_tu: lo.ma_vat_tu, ten_vat_tu: lo.ten_vat_tu, so_lo: lo.so_lo, ten_ncc: lo.ten_ncc,
-        lo_gio_thuong: lo.gio_thuong, lo_gio_dac_biet: lo.gio_dac_biet, lo_tong_gio: lo.tong_gio_lam,
+        lo_gio_thuong: lo.gio_thuong, lo_gio_noi_bo: lo.gio_noi_bo, lo_tong_gio: lo.tong_gio_lam,
       };
       if (ct.length === 0) {
-        rows.push({ ...base, ho_ten: '', so_bao_cao: lo.so_bao_cao, gio_thuong: null, gio_dac_biet: null, gio: null });
+        rows.push({ ...base, ho_ten: '', so_bao_cao: lo.so_bao_cao, gio_thuong: null, gio_noi_bo: null, gio: null });
       } else {
         for (const p of ct) {
           rows.push({
             ...base, ho_ten: p.ho_ten, so_bao_cao: p.so_bao_cao,
-            gio_thuong: p.gio_thuong, gio_dac_biet: p.gio_dac_biet, gio: p.gio,
+            gio_thuong: p.gio_thuong, gio_noi_bo: p.gio_noi_bo, gio: p.gio,
           });
         }
       }
@@ -629,10 +629,10 @@ router.get(
         { header: 'Họ tên', key: 'ho_ten', width: 20 },
         { header: 'Số báo cáo', key: 'so_bao_cao', width: 12 },
         { header: 'Giờ lỗi thường (người)', key: 'gio_thuong', width: 20 },
-        { header: 'Giờ lỗi đặc biệt (người)', key: 'gio_dac_biet', width: 20 },
+        { header: 'Giờ lỗi nội bộ (người)', key: 'gio_noi_bo', width: 20 },
         { header: 'Giờ tổng (người)', key: 'gio', width: 16 },
         { header: 'Lô: giờ lỗi thường', key: 'lo_gio_thuong', width: 18 },
-        { header: 'Lô: giờ lỗi đặc biệt', key: 'lo_gio_dac_biet', width: 18 },
+        { header: 'Lô: giờ lỗi nội bộ', key: 'lo_gio_noi_bo', width: 18 },
         { header: 'Lô: tổng giờ', key: 'lo_tong_gio', width: 14 },
       ],
       rows,
@@ -646,7 +646,7 @@ router.get(
 // Phạm vi: TOÀN BỘ lịch sử của lô (KHÔNG lọc theo ngày, giống Báo công), CHỈ báo cáo lựa chính.
 // Tỷ lệ hư bỏ = SUM(hu_bo) / SUM(tong_lua) (có trọng số), không phải TB các tỷ lệ dòng.
 // Không cần BC_CALC_CTE: dat/hu_bo/tong_lua là cột thô của BaoCao.
-// LOẠI báo cáo dính loại lỗi đặc biệt (LoaiLoi.la_loi_dac_biet): đó là thao tác xử lý nội
+// LOẠI báo cáo dính loại lỗi nội bộ (LoaiLoi.la_loi_noi_bo): đó là thao tác xử lý nội
 // bộ (cắt ty, gắn ron...), không phải khuyết tật -> không tính ở đây (khớp "đã lựa" của lô).
 
 const HU_BO_JOINS = `
@@ -660,7 +660,7 @@ const HU_BO_JOINS = `
 // WHERE dùng chung cho bảng lô và bảng chi tiết (drill-down).
 function huBoWhere(query) {
   const params = [];
-  let where = "WHERE 1=1 AND (ll.la_loi_dac_biet IS NOT TRUE) AND bc.la_lua_lai = FALSE";
+  let where = "WHERE 1=1 AND (ll.la_loi_noi_bo IS NOT TRUE) AND bc.la_lua_lai = FALSE";
   if (query.ma_vat_tu) {
     params.push(query.ma_vat_tu);
     where += ` AND l.ma_vat_tu = $${params.length}`;

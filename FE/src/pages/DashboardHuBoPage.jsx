@@ -24,7 +24,7 @@ import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 // Sản lượng & hư bỏ theo lô - chỉ số CHẤT LƯỢNG (tách khỏi dashboard năng suất).
 // Mỗi dòng = 1 lô. Bấm dòng -> nút Xem -> popup liệt kê từng báo cáo của lô.
 // Phạm vi: toàn bộ lịch sử của lô (KHÔNG lọc ngày, giống Báo công), chỉ báo cáo lựa chính.
-// Tỷ lệ hư bỏ = SUM(hư) / SUM(lựa) (có trọng số). Đã loại báo cáo dính loại lỗi đặc biệt.
+// Tỷ lệ hư bỏ = SUM(hư) / SUM(lựa) (có trọng số). Đã loại báo cáo dính loại lỗi nội bộ.
 const emptyFilters = { ma_vat_tu: '', lo_id: '', ma_ncc: '', loi_chuan_id: '', thu_kho: '' };
 
 // màu theo mức tỷ lệ hư bỏ

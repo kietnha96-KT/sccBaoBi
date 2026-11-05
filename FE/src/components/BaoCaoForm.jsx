@@ -85,8 +85,8 @@ const emptyForm = {
   tg_ket_thuc: '',
   loi_nguoi_dung: '',
   la_lua_lai: false,
-  // id lỗi ĐẶC BIỆT chọn từ dropdown ('' = không chọn). Ghi vào loi_chuan_id ở backend.
-  loi_dac_biet_id: '',
+  // id lỗi NỘI BỘ chọn từ dropdown ('' = không chọn). Ghi vào loi_chuan_id ở backend.
+  loi_noi_bo_id: '',
   ghi_chu: '',
   nhansu_ids: [],
   // map { [loai_loi_id]: "chuoi so" } - hư bỏ chi tiết theo loại lỗi (chỉ vật tư có khai)
@@ -120,8 +120,8 @@ export default function BaoCaoForm({ id, onDone }) {
   const breakdownLoiList = (loaiLoiResp?.data || []).filter(
     (l) => l.muc_dich === 'tach_hu_bo' || l.muc_dich === 'ca_hai'
   );
-  // Lỗi đặc biệt của vật tư -> hiện trong dropdown "Lỗi đặc biệt" (mỗi lỗi có trần riêng trong lô)
-  const dacBietList = (loaiLoiResp?.data || []).filter((l) => l.la_loi_dac_biet);
+  // Lỗi nội bộ của vật tư -> hiện trong dropdown "Lỗi nội bộ" (mỗi lỗi có trần riêng trong lô)
+  const noiBoList = (loaiLoiResp?.data || []).filter((l) => l.la_loi_noi_bo);
 
   const [form, setForm] = useState({
     ...emptyForm,
@@ -148,7 +148,7 @@ export default function BaoCaoForm({ id, onDone }) {
           loi_nguoi_dung: bc.loi_nguoi_dung || '',
           la_lua_lai: bc.la_lua_lai,
           // nếu nhãn hiện tại là lỗi thường thì không khớp option nào -> dropdown để trống
-          loi_dac_biet_id: bc.loi_chuan_id ?? '',
+          loi_noi_bo_id: bc.loi_chuan_id ?? '',
           ghi_chu: bc.ghi_chu || '',
           nhansu_ids: bc.nhansu_tham_gia.map((n) => n.id),
           chi_tiet_loi: Object.fromEntries(
@@ -179,12 +179,12 @@ export default function BaoCaoForm({ id, onDone }) {
     setForm((f) => ({ ...f, chi_tiet_loi: { ...f.chi_tiet_loi, [id]: val } }));
   }
 
-  // Lỗi đặc biệt đang chọn (chỉ hợp lệ nếu thuộc danh sách lỗi đặc biệt của vật tư hiện tại)
-  const loiDacBietChon = dacBietList.find((l) => l.id === Number(form.loi_dac_biet_id)) || null;
+  // Lỗi nội bộ đang chọn (chỉ hợp lệ nếu thuộc danh sách lỗi nội bộ của vật tư hiện tại)
+  const loiNoiBoChon = noiBoList.find((l) => l.id === Number(form.loi_noi_bo_id)) || null;
   // Đã xử lý của riêng lỗi này trong lô (danh sách lô trả sẵn theo tên lỗi)
-  const daXuLyLoiChon = loiDacBietChon
+  const daXuLyLoiChon = loiNoiBoChon
     ? Number(
-        (selectedLo?.da_lua_dac_biet || []).find((x) => x.ten_loi === loiDacBietChon.ten_loi)?.tong
+        (selectedLo?.da_lua_noi_bo || []).find((x) => x.ten_loi === loiNoiBoChon.ten_loi)?.tong
       ) || 0
     : 0;
 
@@ -242,7 +242,7 @@ export default function BaoCaoForm({ id, onDone }) {
         hu_bo: Number(form.hu_bo),
         tg_bat_dau: form.tg_bat_dau.trim() || null,
         tg_ket_thuc: form.tg_ket_thuc.trim() || null,
-        loi_dac_biet_id: loiDacBietChon && !form.la_lua_lai ? loiDacBietChon.id : null,
+        loi_noi_bo_id: loiNoiBoChon && !form.la_lua_lai ? loiNoiBoChon.id : null,
         chi_tiet_loi: breakdownLoiList
           .map((l) => ({ loai_loi_id: l.id, so_luong: Number(form.chi_tiet_loi[l.id]) || 0 }))
           .filter((x) => x.so_luong > 0),
@@ -287,7 +287,7 @@ export default function BaoCaoForm({ id, onDone }) {
           value={maVatTuFilter}
           onChange={(v) => {
             setMaVatTuFilter(v);
-            setForm({ ...form, lo_id: '', chi_tiet_loi: {}, loi_dac_biet_id: '' });
+            setForm({ ...form, lo_id: '', chi_tiet_loi: {}, loi_noi_bo_id: '' });
           }}
           vatTuPlaceholder="Gõ mã hoặc tên vật tư để lọc lô..."
           disabled={disabled}
@@ -404,8 +404,8 @@ export default function BaoCaoForm({ id, onDone }) {
             id="la_lua_lai"
             checked={form.la_lua_lai}
             onChange={(e) =>
-              // lựa lại không đi cùng lỗi đặc biệt -> bỏ chọn lỗi đặc biệt khi tick lựa lại
-              setForm({ ...form, la_lua_lai: e.target.checked, loi_dac_biet_id: e.target.checked ? '' : form.loi_dac_biet_id })
+              // lựa lại không đi cùng lỗi nội bộ -> bỏ chọn lỗi nội bộ khi tick lựa lại
+              setForm({ ...form, la_lua_lai: e.target.checked, loi_noi_bo_id: e.target.checked ? '' : form.loi_noi_bo_id })
             }
             disabled={disabled}
           />
@@ -428,32 +428,31 @@ export default function BaoCaoForm({ id, onDone }) {
         />
       </div>
 
-      {dacBietList.length > 0 && (
+      {noiBoList.length > 0 && (
         <div className="field mt-14">
-          <label htmlFor="loi_dac_biet_id">Lỗi đặc biệt (nếu có)</label>
+          <label htmlFor="loi_noi_bo_id">Xử lý nội bộ (nếu có)</label> 
           <select
-            id="loi_dac_biet_id"
-            value={loiDacBietChon ? loiDacBietChon.id : ''}
-            onChange={(e) => setForm({ ...form, loi_dac_biet_id: e.target.value })}
+            id="loi_noi_bo_id"
+            value={loiNoiBoChon ? loiNoiBoChon.id : ''}
+            onChange={(e) => setForm({ ...form, loi_noi_bo_id: e.target.value })}
             disabled={disabled || form.la_lua_lai}
           >
-            <option value="">— Không (lựa chính bình thường) —</option>
-            {dacBietList.map((l) => (
+            <option value=""></option>
+            {noiBoList.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.ten_loi}
               </option>
             ))}
           </select>
-          {loiDacBietChon ? (
+          {loiNoiBoChon ? (
             <span className="field-hint">
-              Mỗi lỗi đặc biệt có số lượng riêng, tối đa bằng số lượng lô
-              {selectedLo ? ` (${formatSoLuong(selectedLo.so_luong_lo)})` : ''}.
-              {selectedLo ? ` Lỗi này đã xử lý: ${formatSoLuong(daXuLyLoiChon)}.` : ''} Không cộng vào
-              &quot;Đã lựa&quot; của lô.
+              {selectedLo && (
+                <> Lỗi này đã xử lý: <strong>{formatSoLuong(daXuLyLoiChon)}</strong>.</>
+              )}
             </span>
           ) : (
             <span className="field-hint">
-              Chọn khi hàng đang được lấy ra xử lý lỗi đặc biệt (không bị chặn bởi số lượng lô đã lựa đủ).
+              Ví dụ: Gắn ron, cắt ty,...
             </span>
           )}
         </div>

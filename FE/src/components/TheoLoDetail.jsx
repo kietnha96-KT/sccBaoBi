@@ -4,7 +4,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from './Alert';
 import TruncatedText from './TruncatedText';
 
-// Bảng phụ: từng báo cáo lựa chính của 1 lô đã bấm (gồm cả báo cáo lỗi đặc biệt, có đánh dấu).
+// Bảng phụ: từng báo cáo lựa chính của 1 lô đã bấm (gồm cả báo cáo lỗi nội bộ, có đánh dấu).
 // row: dòng lô đã bấm ở Dashboard tiến độ theo lô.
 export default function TheoLoDetail({ row }) {
   const { data, loading, error } = useFetch(
@@ -17,7 +17,7 @@ export default function TheoLoDetail({ row }) {
   const daLua = Number(row.da_lua) || 0;
   const conLai = Number(row.con_lai) || 0;
   const pct = soLuong > 0 ? Math.min(100, (daLua / soLuong) * 100) : 0;
-  const dacBiet = row.da_lua_dac_biet || [];
+  const noiBo = row.da_lua_noi_bo || [];
 
   return (
     <div>
@@ -51,10 +51,10 @@ export default function TheoLoDetail({ row }) {
         </div>
       </div>
 
-      {dacBiet.length > 0 && (
+      {noiBo.length > 0 && (
         <p className="field-hint mb-12">
-          Lỗi đặc biệt (không tính vào "đã lựa"):{' '}
-          {dacBiet.map((x, i) => (
+          Lỗi nội bộ (không tính vào "đã lựa"):{' '}
+          {noiBo.map((x, i) => (
             <span key={x.ten_loi}>
               {i > 0 && ' · '}
               {x.ten_loi}: <strong>{formatSoLuong(x.tong)}</strong>
@@ -88,8 +88,8 @@ export default function TheoLoDetail({ row }) {
                   <td>
                     {r.ten_loi || <span className="field-hint">—</span>}
                     {r.ten_loi && !r.da_gan_nhan && <span className="field-hint"> (chưa gán)</span>}
-                    {r.la_loi_dac_biet && (
-                      <span className="badge badge-warning" style={{ marginLeft: 6 }}>Đặc biệt</span>
+                    {r.la_loi_noi_bo && (
+                      <span className="badge badge-warning" style={{ marginLeft: 6 }}>Nội bộ</span>
                     )}
                   </td>
                   <td>{formatSoLuong(r.dat)}</td>

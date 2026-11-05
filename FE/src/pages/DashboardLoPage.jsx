@@ -208,9 +208,9 @@ export default function DashboardLoPage() {
                             </>
                           )}
                         </div>
-                        {(r.da_lua_dac_biet || []).length > 0 && (
+                        {(r.da_lua_noi_bo || []).length > 0 && (
                           <div className="field-hint progress-breakdown">
-                            {(r.da_lua_dac_biet || []).map((x) => (
+                            {(r.da_lua_noi_bo || []).map((x) => (
                               <span key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}&nbsp;&nbsp;</span>
                             ))}
                           </div>

@@ -1495,7 +1495,7 @@ table.data-table {
   flex-shrink: 0;
 }
 .legend-dot.is-thuong { background: #2a78d6; }
-.legend-dot.is-dacbiet { background: var(--warning); }
+.legend-dot.is-noibo { background: var(--warning); }
 
 .data-table tfoot tr {
   font-weight: 700;

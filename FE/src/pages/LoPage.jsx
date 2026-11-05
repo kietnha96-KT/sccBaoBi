@@ -198,9 +198,9 @@ export default function LoPage() {
                     <td>{formatSoLuong(row.so_luong_lo)}</td>
                     <td>
                       <div>{formatSoLuong(row.da_lua)}</div>
-                      {(row.da_lua_dac_biet || []).length > 0 && (
+                      {(row.da_lua_noi_bo || []).length > 0 && (
                         <div className="field-hint hint-xs">
-                          {(row.da_lua_dac_biet || []).map((x) => (
+                          {(row.da_lua_noi_bo || []).map((x) => (
                             <div key={x.ten_loi}>{x.ten_loi}: {formatSoLuong(x.tong)}</div>
                           ))}
                         </div>

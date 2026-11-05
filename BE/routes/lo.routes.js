@@ -5,7 +5,7 @@ const { authenticateToken, requireStaff } = require('../middleware/auth');
 const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 const { buildOrderBy } = require('../utils/sort');
-const { LO_DA_LUA_JOIN, SUM_DA_LUA_CHUAN, dacBietToText } = require('../utils/loiDacBiet');
+const { LO_DA_LUA_JOIN, SUM_DA_LUA_CHUAN, noiBoToText } = require('../utils/loiNoiBo');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -27,7 +27,7 @@ const LO_SELECT = `
     v.ten_vat_tu,
     n.ten_ncc,
     COALESCE(dl.da_lua, 0) AS da_lua,
-    COALESCE(dl.da_lua_dac_biet, '[]') AS da_lua_dac_biet,
+    COALESCE(dl.da_lua_noi_bo, '[]') AS da_lua_noi_bo,
     l.so_luong_lo - COALESCE(dl.da_lua, 0) AS con_lai
   FROM Lo l
   JOIN VatTu v ON v.ma_vat_tu = l.ma_vat_tu
@@ -82,7 +82,7 @@ router.get(
     const result = await pool.query(`${LO_SELECT} ORDER BY l.id DESC`);
     const rows = result.rows.map((r) => ({
       ...r,
-      _dac_biet_txt: dacBietToText(r.da_lua_dac_biet),
+      _noi_bo_txt: noiBoToText(r.da_lua_noi_bo),
     }));
     await sendExcel(res, {
       sheetName: 'Lo',
@@ -95,8 +95,8 @@ router.get(
         { header: 'Ngày sản xuất', key: 'ngay_san_xuat', width: 18 },
         { header: 'Nhà cung cấp', key: 'ten_ncc', width: 25 },
         { header: 'Số lượng lô', key: 'so_luong_lo', width: 15 },
-        { header: 'Đã lựa (không tính lỗi đặc biệt)', key: 'da_lua', width: 22 },
-        { header: 'Lỗi đặc biệt (chi tiết)', key: '_dac_biet_txt', width: 32 },
+        { header: 'Đã lựa (không tính lỗi nội bộ)', key: 'da_lua', width: 22 },
+        { header: 'Lỗi nội bộ (chi tiết)', key: '_noi_bo_txt', width: 32 },
         { header: 'Còn lại', key: 'con_lai', width: 15 },
       ],
       rows,
@@ -230,7 +230,7 @@ router.put(
     }
 
     // Không cho hạ so_luong_lo xuống thấp hơn số đã lựa thực tế (tránh dữ liệu vô lý).
-    // Dùng "đã lựa" CHUẨN (đã trừ lỗi đặc biệt) cho khớp con số hiển thị trong danh mục lô.
+    // Dùng "đã lựa" CHUẨN (đã trừ lỗi nội bộ) cho khớp con số hiển thị trong danh mục lô.
     const daLuaResult = await pool.query(
       `SELECT COALESCE(${SUM_DA_LUA_CHUAN}, 0) AS da_lua
        FROM BaoCao bc
@@ -242,12 +242,13 @@ router.put(
     if (so_luong_lo !== undefined && Number(so_luong_lo) < daLua) {
       throw new AppError(
         400,
-        `so_luong_lo (${so_luong_lo}) không được nhỏ hơn số đã lựa hiện tại (${daLua})`
+        `so_luong_lo (${so_luong_lo}) không được nhỏ hơn số đã lựa hiện tại (${daLua})`,
+        { code: 'SO_LUONG_LO_THAP_HON_DA_LUA', details: { so_luong_lo: Number(so_luong_lo), da_lua: daLua } }
       );
     }
 
-    // Mỗi lỗi đặc biệt cũng có trần = so_luong_lo: khi HẠ so_luong_lo, không cho thấp hơn số đã
-    // xử lý của bất kỳ lỗi đặc biệt nào. Chỉ kiểm khi thực sự hạ xuống (lô đã lố sẵn từ trước vẫn
+    // Mỗi lỗi nội bộ cũng có trần = so_luong_lo: khi HẠ so_luong_lo, không cho thấp hơn số đã
+    // xử lý của bất kỳ lỗi nội bộ nào. Chỉ kiểm khi thực sự hạ xuống (lô đã lố sẵn từ trước vẫn
     // sửa được các thông tin khác như nhà cung cấp, ngày sản xuất).
     if (so_luong_lo !== undefined && so_luong_lo !== null) {
       const hienTai = await pool.query('SELECT so_luong_lo FROM Lo WHERE id = $1', [req.params.id]);
@@ -256,7 +257,7 @@ router.put(
           `SELECT ll.ten_loi, SUM(bc.tong_lua) AS tong
            FROM BaoCao bc
            JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
-           WHERE bc.lo_id = $1 AND bc.la_lua_lai = FALSE AND ll.la_loi_dac_biet = TRUE
+           WHERE bc.lo_id = $1 AND bc.la_lua_lai = FALSE AND ll.la_loi_noi_bo = TRUE
            GROUP BY ll.id, ll.ten_loi
            HAVING SUM(bc.tong_lua) > $2
            ORDER BY SUM(bc.tong_lua) DESC
@@ -266,7 +267,11 @@ router.put(
         if (cao.rows[0]) {
           throw new AppError(
             400,
-            `so_luong_lo (${so_luong_lo}) không được nhỏ hơn số đã xử lý của lỗi đặc biệt "${cao.rows[0].ten_loi}" (${Number(cao.rows[0].tong)})`
+            `so_luong_lo (${so_luong_lo}) không được nhỏ hơn số đã xử lý của lỗi nội bộ "${cao.rows[0].ten_loi}" (${Number(cao.rows[0].tong)})`,
+            {
+              code: 'SO_LUONG_LO_THAP_HON_NOI_BO',
+              details: { so_luong_lo: Number(so_luong_lo), ten_loi: cao.rows[0].ten_loi, da_xu_ly: Number(cao.rows[0].tong) },
+            }
           );
         }
       }

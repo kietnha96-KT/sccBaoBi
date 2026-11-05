@@ -2,7 +2,7 @@ import { formatSoLuong, formatSoThapPhan } from '../format';
 
 // Xem chi tiết GIỜ LÀM theo người của 1 lô (chỉ đọc). Nhận thẳng object dòng từ dashboard
 // báo công (đã có sẵn chi_tiet_nguoi), không gọi API.
-// Xanh = giờ lỗi thường, Cam = giờ lỗi đặc biệt.
+// Xanh = giờ lỗi thường, Cam = giờ lỗi nội bộ.
 const gio = (h) => (h == null ? '—' : `${formatSoThapPhan(h, 1)}h`);
 
 export default function BaoCongLoDetail({ lo }) {
@@ -38,10 +38,10 @@ export default function BaoCongLoDetail({ lo }) {
         </div>
         <div className="hours-card">
           <div className="field-hint hours-label">
-            <span className="legend-dot is-dacbiet" />
-            Giờ lỗi đặc biệt
+            <span className="legend-dot is-noibo" />
+            Giờ lỗi nội bộ
           </div>
-          <div className="hours-value text-warning">{gio(lo.gio_dac_biet)}</div>
+          <div className="hours-value text-warning">{gio(lo.gio_noi_bo)}</div>
         </div>
       </div>
 
@@ -52,7 +52,7 @@ export default function BaoCongLoDetail({ lo }) {
               <th>Họ tên</th>
               <th>Số BC</th>
               <th className="text-blue">Giờ lỗi thường</th>
-              <th className="text-warning">Giờ lỗi đặc biệt</th>
+              <th className="text-warning">Giờ lỗi nội bộ</th>
               <th>Tổng giờ</th>
             </tr>
           </thead>
@@ -62,7 +62,7 @@ export default function BaoCongLoDetail({ lo }) {
                 <td>{p.ho_ten}</td>
                 <td>{formatSoLuong(p.so_bao_cao)}</td>
                 <td>{Number(p.gio_thuong) > 0 ? gio(p.gio_thuong) : <span className="field-hint">—</span>}</td>
-                <td>{Number(p.gio_dac_biet) > 0 ? gio(p.gio_dac_biet) : <span className="field-hint">—</span>}</td>
+                <td>{Number(p.gio_noi_bo) > 0 ? gio(p.gio_noi_bo) : <span className="field-hint">—</span>}</td>
                 <td><strong>{gio(p.gio)}</strong></td>
               </tr>
             ))}
@@ -78,7 +78,7 @@ export default function BaoCongLoDetail({ lo }) {
                 <td>Tổng</td>
                 <td>{formatSoLuong(lo.so_bao_cao)}</td>
                 <td className="text-blue">{gio(lo.gio_thuong)}</td>
-                <td className="text-warning">{gio(lo.gio_dac_biet)}</td>
+                <td className="text-warning">{gio(lo.gio_noi_bo)}</td>
                 <td>{gio(lo.tong_gio_lam)}</td>
               </tr>
             </tfoot>

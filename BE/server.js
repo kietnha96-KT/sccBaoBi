@@ -76,7 +76,10 @@ app.use((err, req, res, next) => {
   if (status === 500) {
     console.error(err);
   }
-  res.status(status).json({ message: err.message || 'Lỗi máy chủ' });
+  res.status(status).json({
+    message: err.message || 'Lỗi máy chủ',
+    ...(err.code && { code: err.code, details: err.details }),
+  });
 });
 
 const PORT = process.env.PORT || 5000;

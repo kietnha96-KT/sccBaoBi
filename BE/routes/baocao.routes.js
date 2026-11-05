@@ -6,7 +6,7 @@ const { sendExcel } = require('../utils/excelExport');
 const { getPagination, buildPaginationMeta } = require('../utils/pagination');
 const { buildOrderBy } = require('../utils/sort');
 const { BC_CALC_CTE } = require('../utils/productivity');
-const { SUM_DA_LUA_CHUAN } = require('../utils/loiDacBiet');
+const { SUM_DA_LUA_CHUAN } = require('../utils/loiNoiBo');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -280,17 +280,17 @@ async function assertChiTietLoiHopLe(client, lo_id, list) {
   }
 }
 
-// loi_dac_biet_id phải là loại lỗi ĐẶC BIỆT (la_loi_dac_biet = TRUE) thuộc đúng vật tư của lô.
-async function assertLoiDacBietHopLe(client, lo_id, loi_id) {
+// loi_noi_bo_id phải là loại lỗi NỘI BỘ (la_loi_noi_bo = TRUE) thuộc đúng vật tư của lô.
+async function assertLoiNoiBoHopLe(client, lo_id, loi_id) {
   const r = await client.query(
     `SELECT ll.id
      FROM LoaiLoi ll
      JOIN Lo l ON l.ma_vat_tu = ll.ma_vat_tu
-     WHERE l.id = $1 AND ll.id = $2 AND ll.la_loi_dac_biet = TRUE`,
+     WHERE l.id = $1 AND ll.id = $2 AND ll.la_loi_noi_bo = TRUE`,
     [lo_id, loi_id]
   );
   if (!r.rows[0]) {
-    throw new AppError(400, 'Lỗi đặc biệt không thuộc vật tư của lô hoặc không phải loại lỗi đặc biệt');
+    throw new AppError(400, 'Lỗi nội bộ không thuộc vật tư của lô hoặc không phải loại lỗi nội bộ');
   }
 }
 
@@ -299,15 +299,15 @@ function parseReportBody(body) {
   const { ngay, lo_id, dat, hu_bo, tg_bat_dau, tg_ket_thuc, loi_nguoi_dung, la_lua_lai, ghi_chu, nhansu_ids } =
     body;
 
-  // Lỗi đặc biệt người nhập chọn từ dropdown (không bắt buộc). Ghi thẳng vào loi_chuan_id.
-  let loiDacBietId = null;
-  if (body.loi_dac_biet_id !== undefined && body.loi_dac_biet_id !== null && body.loi_dac_biet_id !== '') {
-    loiDacBietId = Number(body.loi_dac_biet_id);
-    if (!Number.isInteger(loiDacBietId) || loiDacBietId <= 0) {
-      throw new AppError(400, 'loi_dac_biet_id không hợp lệ');
+  // Lỗi nội bộ người nhập chọn từ dropdown (không bắt buộc). Ghi thẳng vào loi_chuan_id.
+  let loiNoiBoId = null;
+  if (body.loi_noi_bo_id !== undefined && body.loi_noi_bo_id !== null && body.loi_noi_bo_id !== '') {
+    loiNoiBoId = Number(body.loi_noi_bo_id);
+    if (!Number.isInteger(loiNoiBoId) || loiNoiBoId <= 0) {
+      throw new AppError(400, 'loi_noi_bo_id không hợp lệ');
     }
     if (la_lua_lai) {
-      throw new AppError(400, 'Báo cáo lựa lại không chọn lỗi đặc biệt');
+      throw new AppError(400, 'Báo cáo lựa lại không chọn lỗi nội bộ');
     }
   }
 
@@ -333,7 +333,7 @@ function parseReportBody(body) {
     tg_ket_thuc: gio.tg_ket_thuc,
     loi_nguoi_dung: loi_nguoi_dung || null,
     la_lua_lai: !!la_lua_lai,
-    loi_dac_biet_id: loiDacBietId,
+    loi_noi_bo_id: loiNoiBoId,
     ghi_chu: ghi_chu || null,
     nhansu_ids: [...new Set(nhansu_ids.map(Number))],
     chi_tiet_loi: parseChiTietLoi(body.chi_tiet_loi),
@@ -359,18 +359,18 @@ async function resolveNhanVienIds(rawIds) {
 }
 
 // Kiểm tra lô không bị vượt. Hai "phần" độc lập, mỗi phần có trần = so_luong_lo:
-//  - Báo cáo KHÔNG chọn lỗi đặc biệt: tổng lựa chuẩn <= so_luong_lo.
-//    Loại trừ: báo cáo lựa lại, chính báo cáo đang sửa, VÀ báo cáo dính loại lỗi đặc biệt
+//  - Báo cáo KHÔNG chọn lỗi nội bộ: tổng lựa chuẩn <= so_luong_lo.
+//    Loại trừ: báo cáo lựa lại, chính báo cáo đang sửa, VÀ báo cáo dính loại lỗi nội bộ
 //    (phần đó coi như chưa lựa xong -> vẫn nằm trong "còn lại", khớp danh mục lô).
-//  - Báo cáo CHỌN 1 lỗi đặc biệt (loi_dac_biet_id): tổng của RIÊNG lỗi đó trong lô <= so_luong_lo.
-//    Mỗi lỗi đặc biệt có trần riêng nên lô đã lựa chuẩn đủ vẫn nhập được; trần "có" từ lần nhập
+//  - Báo cáo CHỌN 1 lỗi nội bộ (loi_noi_bo_id): tổng của RIÊNG lỗi đó trong lô <= so_luong_lo.
+//    Mỗi lỗi nội bộ có trần riêng nên lô đã lựa chuẩn đủ vẫn nhập được; trần "có" từ lần nhập
 //    đầu tiên của lỗi đó (chưa có báo cáo nào thì tổng = 0).
 // Khóa dòng Lo (FOR UPDATE) để 2 người nhập cùng lúc không cùng lọt qua trần.
 // hanhDong: 'nhap' (nhập/sửa báo cáo, lỗi 400) | 'doi_nhan' (thủ kho đổi nhãn lỗi chuẩn của 1
 // báo cáo có sẵn, lỗi 409 + thông báo giải thích vì sao bị từ chối).
 async function checkCapacity(
   client,
-  { lo_id, dat, hu_bo, la_lua_lai, loi_dac_biet_id, excludeBaoCaoId, hanhDong = 'nhap' }
+  { lo_id, dat, hu_bo, la_lua_lai, loi_noi_bo_id, excludeBaoCaoId, hanhDong = 'nhap' }
 ) {
   if (la_lua_lai) return; // báo cáo lựa lại không tính vào giới hạn so_luong_lo
   const doiNhan = hanhDong === 'doi_nhan';
@@ -381,9 +381,9 @@ async function checkCapacity(
   if (!loResult.rows[0]) throw new AppError(400, 'lo_id không tồn tại');
   const soLuongLo = Number(loResult.rows[0].so_luong_lo);
 
-  if (loi_dac_biet_id) {
-    await assertLoiDacBietHopLe(client, lo_id, loi_dac_biet_id);
-    const sp = [lo_id, loi_dac_biet_id];
+  if (loi_noi_bo_id) {
+    await assertLoiNoiBoHopLe(client, lo_id, loi_noi_bo_id);
+    const sp = [lo_id, loi_noi_bo_id];
     let ex = '';
     if (excludeBaoCaoId) {
       sp.push(excludeBaoCaoId);
@@ -404,8 +404,12 @@ async function checkCapacity(
       throw new AppError(
         doiNhan ? 409 : 400,
         doiNhan
-          ? `Không thể đổi nhãn: ${tongMoiDb} sản phẩm của báo cáo này sẽ chuyển sang lỗi đặc biệt "${r.rows[0].ten_loi}" nhưng vượt số lượng lô. Lỗi này đã xử lý ${daXuLy}/${soLuongLo}, chỉ còn lại ${conLaiHt}. Hãy xử lý số liệu của lô trước khi đổi nhãn.`
-          : `Vượt quá số lượng lô cho lỗi đặc biệt "${r.rows[0].ten_loi}". Đã xử lý ${daXuLy}/${soLuongLo}, chỉ còn lại ${conLaiHt}.`
+          ? `Vượt số lượng lô, không thể đổi nhãn. "${r.rows[0].ten_loi}" đã xử lý ${daXuLy}/${soLuongLo}, chỉ còn lại ${conLaiHt}. Hãy xem lại các số liệu đã báo cáo.`
+          : `Vượt quá số lượng lô cho lỗi "${r.rows[0].ten_loi}". Đã xử lý ${daXuLy}/${soLuongLo}, chỉ còn lại ${conLaiHt}.`,
+        {
+          code: 'VUOT_SO_LUONG_LO',
+          details: { noi_bo: true, doi_nhan: doiNhan, ten_loi: r.rows[0].ten_loi, da_xu_ly: daXuLy, so_luong_lo: soLuongLo, con_lai: conLaiHt },
+        }
       );
     }
     return;
@@ -433,8 +437,12 @@ async function checkCapacity(
     throw new AppError(
       doiNhan ? 409 : 400,
       doiNhan
-        ? `Không thể đổi nhãn: ${tongMoi} sản phẩm của báo cáo này sẽ chuyển về phần lựa chuẩn của lô nhưng vượt số lượng lô. Đã lựa chuẩn ${daLua}/${soLuongLo}, chỉ còn lại ${conLaiHt}. Hãy xử lý số liệu của lô trước khi đổi nhãn.`
-        : `Vượt quá số lượng lô cho phép. Đã lựa ${daLua}/${soLuongLo}, chỉ còn lại ${conLaiHt}.`
+        ? `Vượt số lượng lô, không thể đổi nhãn. Đã lựa ${daLua}/${soLuongLo}, chỉ còn lại ${conLaiHt}. Hãy xem lại các số liệu đã báo cáo.`
+        : `Vượt quá số lượng lô cho phép. Đã lựa ${daLua}/${soLuongLo}, chỉ còn lại ${conLaiHt}.`,
+      {
+        code: 'VUOT_SO_LUONG_LO',
+        details: { noi_bo: false, doi_nhan: doiNhan, da_xu_ly: daLua, so_luong_lo: soLuongLo, con_lai: conLaiHt },
+      }
     );
   }
 }
@@ -462,7 +470,7 @@ router.post(
         dat: payload.dat,
         hu_bo: payload.hu_bo,
         la_lua_lai: payload.la_lua_lai,
-        loi_dac_biet_id: payload.loi_dac_biet_id,
+        loi_noi_bo_id: payload.loi_noi_bo_id,
       });
 
       const insertResult = await client.query(
@@ -480,7 +488,7 @@ router.post(
           payload.loi_nguoi_dung,
           payload.la_lua_lai,
           payload.ghi_chu,
-          payload.loi_dac_biet_id,
+          payload.loi_noi_bo_id,
         ]
       );
       const baocaoId = insertResult.rows[0].id;
@@ -537,7 +545,7 @@ async function assertCanModify(req, baocaoId) {
 }
 
 // PUT /api/baocao/:id - sửa báo cáo.
-// - loi_chuan_id: ở đây chỉ đổi qua loi_dac_biet_id (lỗi ĐẶC BIỆT chọn lúc nhập); nhãn lỗi
+// - loi_chuan_id: ở đây chỉ đổi qua loi_noi_bo_id (lỗi NỘI BỘ chọn lúc nhập); nhãn lỗi
 //   thường do thủ kho gán được giữ nguyên. Gán/đổi nhãn tổng quát vẫn dùng PATCH /:id/loi-chuan.
 // - loi_nguoi_dung: sửa được như mọi trường khác, miễn là còn quyền sửa phiếu
 //   (nhân viên & thủ kho: phiếu của mình + trong ngày; admin: mọi lúc) - assertCanModify đã kiểm.
@@ -559,23 +567,23 @@ router.put(
         dat: payload.dat,
         hu_bo: payload.hu_bo,
         la_lua_lai: payload.la_lua_lai,
-        loi_dac_biet_id: payload.loi_dac_biet_id,
+        loi_noi_bo_id: payload.loi_noi_bo_id,
         excludeBaoCaoId: baocaoId,
       });
 
-      // Dropdown chỉ chọn lỗi ĐẶC BIỆT. Nếu báo cáo đang mang 1 lỗi chuẩn THƯỜNG do thủ kho gán
+      // Dropdown chỉ chọn lỗi NỘI BỘ. Nếu báo cáo đang mang 1 lỗi chuẩn THƯỜNG do thủ kho gán
       // thì sửa phiếu không được làm mất nhãn đó; còn lại thì theo lựa chọn trong dropdown.
       const cur = await client.query(
-        `SELECT bc.loi_chuan_id, COALESCE(ll.la_loi_dac_biet, FALSE) AS dac_biet
+        `SELECT bc.loi_chuan_id, COALESCE(ll.la_loi_noi_bo, FALSE) AS noi_bo
          FROM BaoCao bc LEFT JOIN LoaiLoi ll ON ll.id = bc.loi_chuan_id
          WHERE bc.id = $1`,
         [baocaoId]
       );
       const giuNhanThuong =
-        cur.rows[0] && cur.rows[0].loi_chuan_id && !cur.rows[0].dac_biet
+        cur.rows[0] && cur.rows[0].loi_chuan_id && !cur.rows[0].noi_bo
           ? cur.rows[0].loi_chuan_id
           : null;
-      const loiChuanMoi = payload.loi_dac_biet_id ?? giuNhanThuong;
+      const loiChuanMoi = payload.loi_noi_bo_id ?? giuNhanThuong;
 
       const updateResult = await client.query(
         `UPDATE BaoCao SET ngay = $1, lo_id = $2, dat = $3, hu_bo = $4, tg_bat_dau = $5,
@@ -653,9 +661,9 @@ router.delete(
 
 // PATCH /api/baocao/:id/loi-chuan - admin & thủ kho gán/sửa/gỡ nhãn lỗi chuẩn.
 // Báo cáo thuộc 1 "phần" của lô: phần lựa chuẩn (không nhãn / nhãn thường) hoặc phần riêng của
-// 1 lỗi đặc biệt. Đổi nhãn làm báo cáo chuyển phần -> kiểm tra trần (= so_luong_lo) của phần
+// 1 lỗi nội bộ. Đổi nhãn làm báo cáo chuyển phần -> kiểm tra trần (= so_luong_lo) của phần
 // NHẬN thêm; vượt thì TỪ CHỐI (409) kèm lý do. Đổi trong cùng phần (thường -> thường, hoặc
-// gán lại đúng lỗi đặc biệt cũ) hoặc báo cáo lựa lại thì không cần kiểm tra.
+// gán lại đúng lỗi nội bộ cũ) hoặc báo cáo lựa lại thì không cần kiểm tra.
 router.patch(
   '/:id/loi-chuan',
   requireStaff,
@@ -673,7 +681,7 @@ router.patch(
 
       const bcResult = await client.query(
         `SELECT bc.lo_id, bc.dat, bc.hu_bo, bc.la_lua_lai, bc.loi_chuan_id, l.ma_vat_tu,
-                COALESCE(llc.la_loi_dac_biet, FALSE) AS dac_biet_cu
+                COALESCE(llc.la_loi_noi_bo, FALSE) AS noi_bo_cu
          FROM BaoCao bc
          JOIN Lo l ON l.id = bc.lo_id
          LEFT JOIN LoaiLoi llc ON llc.id = bc.loi_chuan_id
@@ -683,30 +691,30 @@ router.patch(
       const bc = bcResult.rows[0];
       if (!bc) throw new AppError(404, 'Không tìm thấy báo cáo');
 
-      let dacBietMoi = false;
+      let noiBoMoi = false;
       if (loiMoiId !== null) {
         if (!Number.isInteger(loiMoiId)) throw new AppError(400, 'loi_chuan_id không hợp lệ');
         const llResult = await client.query(
-          'SELECT ma_vat_tu, la_loi_dac_biet FROM LoaiLoi WHERE id = $1',
+          'SELECT ma_vat_tu, la_loi_noi_bo FROM LoaiLoi WHERE id = $1',
           [loiMoiId]
         );
         if (!llResult.rows[0]) throw new AppError(400, 'loi_chuan_id không tồn tại');
         if (llResult.rows[0].ma_vat_tu !== bc.ma_vat_tu) {
           throw new AppError(400, 'Loại lỗi này không thuộc vật tư của báo cáo');
         }
-        dacBietMoi = llResult.rows[0].la_loi_dac_biet;
+        noiBoMoi = llResult.rows[0].la_loi_noi_bo;
       }
 
-      // 0 = phần lựa chuẩn; khác 0 = id của lỗi đặc biệt (mỗi lỗi 1 phần riêng)
-      const phanCu = bc.dac_biet_cu ? bc.loi_chuan_id : 0;
-      const phanMoi = dacBietMoi ? loiMoiId : 0;
+      // 0 = phần lựa chuẩn; khác 0 = id của lỗi nội bộ (mỗi lỗi 1 phần riêng)
+      const phanCu = bc.noi_bo_cu ? bc.loi_chuan_id : 0;
+      const phanMoi = noiBoMoi ? loiMoiId : 0;
       if (!bc.la_lua_lai && phanCu !== phanMoi) {
         await checkCapacity(client, {
           lo_id: bc.lo_id,
           dat: bc.dat,
           hu_bo: bc.hu_bo,
           la_lua_lai: false,
-          loi_dac_biet_id: dacBietMoi ? loiMoiId : null,
+          loi_noi_bo_id: noiBoMoi ? loiMoiId : null,
           excludeBaoCaoId: baocaoId,
           hanhDong: 'doi_nhan',
         });

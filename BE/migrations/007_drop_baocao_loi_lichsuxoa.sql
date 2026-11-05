@@ -2,7 +2,7 @@
 -- repo; file này vẫn CẦN giữ vì prod còn bảng đó. DB mới dựng từ đầu thì không có bảng -> no-op).
 --
 -- Lý do: cơ chế "đổi mục đích loại lỗi -> hệ thống tự dọn dữ liệu rồi ghi lưu vết" đã bỏ.
--- Loại lỗi đã có dữ liệu dùng thì bị KHÓA mục đích + cờ lỗi đặc biệt (chỉ đổi tên được),
+-- Loại lỗi đã có dữ liệu dùng thì bị KHÓA mục đích + cờ lỗi nội bộ (chỉ đổi tên được),
 -- nên không còn thao tác nào xóa dữ liệu để lưu vết. Bảng này (không FK, không ai đọc) trống
 -- trên prod tại thời điểm kiểm tra 2026-11-05.
 --

@@ -59,15 +59,15 @@ export default function LoaiLoiPage() {
   }, [filters.ma_vat_tu, filters.thu_kho, page, setSelectedRowId]);
 
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
+  const [form, setForm] = useState({ ma_vat_tu: '', ten_loi: '', la_loi_noi_bo: false, muc_dich: 'gan_nhan' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   // Loại lỗi đang sửa đã có dữ liệu dùng chưa (nạp khi mở form sửa). Có dữ liệu thì khóa
-  // mục đích + cờ lỗi đặc biệt, chỉ cho đổi tên (backend cũng từ chối nếu cố đổi).
+  // mục đích + cờ lỗi nội bộ, chỉ cho đổi tên (backend cũng từ chối nếu cố đổi).
   const [suDung, setSuDung] = useState(null);
 
   function openCreate() {
-    setForm({ ma_vat_tu: filters.ma_vat_tu || '', ten_loi: '', la_loi_dac_biet: false, muc_dich: 'gan_nhan' });
+    setForm({ ma_vat_tu: filters.ma_vat_tu || '', ten_loi: '', la_loi_noi_bo: false, muc_dich: 'gan_nhan' });
     setFormError('');
     setSuDung(null);
     setModal('create');
@@ -77,9 +77,9 @@ export default function LoaiLoiPage() {
     setForm({
       ma_vat_tu: row.ma_vat_tu,
       ten_loi: row.ten_loi,
-      la_loi_dac_biet: !!row.la_loi_dac_biet,
-      // Lỗi đặc biệt luôn khóa mục đích = 'gan_nhan' (xem ghi chú ở ô chọn bên dưới).
-      muc_dich: row.la_loi_dac_biet ? 'gan_nhan' : row.muc_dich || 'gan_nhan',
+      la_loi_noi_bo: !!row.la_loi_noi_bo,
+      // Lỗi nội bộ luôn khóa mục đích = 'gan_nhan' (xem ghi chú ở ô chọn bên dưới).
+      muc_dich: row.la_loi_noi_bo ? 'gan_nhan' : row.muc_dich || 'gan_nhan',
     });
     setFormError('');
     setSuDung(null);
@@ -89,7 +89,7 @@ export default function LoaiLoiPage() {
       .catch(() => setSuDung(null));
   }
 
-  // Đã có dữ liệu dùng -> khóa "bản chất" (mục đích, lỗi đặc biệt), chỉ đổi tên được.
+  // Đã có dữ liệu dùng -> khóa "bản chất" (mục đích, lỗi nội bộ), chỉ đổi tên được.
   const daKhoa = !!(modal?.edit && suDung?.da_co_du_lieu);
 
   async function handleSubmit(e) {
@@ -103,7 +103,7 @@ export default function LoaiLoiPage() {
       } else {
         await updateLoaiLoi(modal.edit.id, {
           ten_loi: form.ten_loi,
-          la_loi_dac_biet: form.la_loi_dac_biet,
+          la_loi_noi_bo: form.la_loi_noi_bo,
           muc_dich: form.muc_dich,
         });
       }
@@ -198,7 +198,7 @@ export default function LoaiLoiPage() {
                   <SortableTh label="Tên vật tư" sortKey="ten_vat_tu" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Tên lỗi" sortKey="ten_loi" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Mục đích" sortKey="muc_dich" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
-                  <SortableTh label="Lỗi đặc biệt" sortKey="la_loi_dac_biet" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Lỗi nội bộ" sortKey="la_loi_noi_bo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
@@ -209,8 +209,8 @@ export default function LoaiLoiPage() {
                     <td><TruncatedText text={row.ten_loi} maxWidth={220} /></td>
                     <td>{MUC_DICH_LABEL[row.muc_dich] || row.muc_dich}</td>
                     <td>
-                      {row.la_loi_dac_biet ? (
-                        <span className="badge badge-warning">Đặc biệt</span>
+                      {row.la_loi_noi_bo ? (
+                        <span className="badge badge-warning">Nội bộ</span>
                       ) : (
                         <span className="field-hint">—</span>
                       )}
@@ -249,7 +249,7 @@ export default function LoaiLoiPage() {
                       {formatSoLuong(suDung.tong_so_luong_chi_tiet)} sản phẩm).
                     </li>
                   )}
-                  <li>Muốn dùng theo cách khác (mục đích, lỗi đặc biệt), hãy tạo loại lỗi mới.</li>
+                  <li>Muốn dùng theo cách khác (mục đích, lỗi nội bộ), hãy tạo loại lỗi mới.</li>
                 </ul>
               </div>
             )}
@@ -271,7 +271,7 @@ export default function LoaiLoiPage() {
                 <select
                   value={form.muc_dich}
                   onChange={(e) => setForm({ ...form, muc_dich: e.target.value })}
-                  disabled={form.la_loi_dac_biet || daKhoa}
+                  disabled={form.la_loi_noi_bo || daKhoa}
                 >
                   <option value="gan_nhan">Gán nhãn (lỗi chuẩn cho báo cáo)</option>
                   <option value="tach_hu_bo">Tách hư bỏ (nhập số lượng chi tiết)</option>
@@ -280,8 +280,8 @@ export default function LoaiLoiPage() {
                 <span className="field-hint">
                   {daKhoa
                     ? 'Đã khóa vì loại lỗi này đã có dữ liệu.'
-                    : form.la_loi_dac_biet
-                      ? 'Lỗi đặc biệt luôn khóa ở "Gán nhãn".'
+                    : form.la_loi_noi_bo
+                      ? 'Lỗi nội bộ luôn khóa ở "Gán nhãn".'
                       : '"Tách hư bỏ" / "Cả hai" sẽ hiện ô nhập số lượng trong form báo cáo xử lý.'}
                 </span>
               </div>
@@ -289,17 +289,17 @@ export default function LoaiLoiPage() {
                 <label className="check-inline">
                   <input
                     type="checkbox"
-                    checked={form.la_loi_dac_biet}
+                    checked={form.la_loi_noi_bo}
                     disabled={daKhoa}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        la_loi_dac_biet: e.target.checked,
+                        la_loi_noi_bo: e.target.checked,
                         muc_dich: e.target.checked ? 'gan_nhan' : form.muc_dich,
                       })
                     }
                   />
-                  Lỗi đặc biệt
+                  Lỗi nội bộ
                 </label>
               </div>
             </div>

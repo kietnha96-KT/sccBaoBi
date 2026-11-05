@@ -46,7 +46,7 @@ CREATE TABLE LoaiLoi (
     id              SERIAL PRIMARY KEY,
     ma_vat_tu       VARCHAR(20) NOT NULL REFERENCES VatTu(ma_vat_tu),
     ten_loi         VARCHAR(200) NOT NULL,
-    la_loi_dac_biet BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = tong_lua không cộng vào "đã lựa" của lô, hiện tách riêng
+    la_loi_noi_bo BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = tong_lua không cộng vào "đã lựa" của lô, hiện tách riêng
     -- mục đích dùng: 'gan_nhan' = gán nhãn lỗi chuẩn cho báo cáo (năng suất);
     -- 'tach_hu_bo' = nhập số lượng hư bỏ chi tiết trong báo cáo; 'ca_hai' = cả hai.
     muc_dich        VARCHAR(20) NOT NULL DEFAULT 'gan_nhan'

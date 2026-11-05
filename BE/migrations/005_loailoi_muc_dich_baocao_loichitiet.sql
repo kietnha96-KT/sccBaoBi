@@ -34,6 +34,6 @@ CREATE INDEX IF NOT EXISTS idx_baocao_loichitiet_baocao_id ON BaoCao_LoiChiTiet(
 CREATE INDEX IF NOT EXISTS idx_baocao_loichitiet_loai_loi_id ON BaoCao_LoiChiTiet(loai_loi_id);
 
 -- LƯU Ý: bản gốc còn 3 bước dọn dữ liệu 1 lần ngay sau đây (gỡ nhãn lỗi chuẩn của loại 'tach_hu_bo',
--- ép lỗi đặc biệt về muc_dich = 'gan_nhan', xóa dòng hư bỏ chi tiết của loại 'gan_nhan').
+-- ép lỗi nội bộ về muc_dich = 'gan_nhan', xóa dòng hư bỏ chi tiết của loại 'gan_nhan').
 -- Đã chạy trên prod từ trước và ĐÃ BỎ khỏi file này để chạy lại file này KHÔNG đụng vào dữ liệu.
 -- Giờ loại lỗi đã có dữ liệu thì bị khóa mục đích (BE từ chối đổi), không còn tự dọn dữ liệu.

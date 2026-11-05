@@ -15,7 +15,7 @@ const LOAILOI_SORT_COLUMNS = {
   ten_vat_tu: 'v.ten_vat_tu',
   ten_loi: 'll.ten_loi',
   muc_dich: 'll.muc_dich',
-  la_loi_dac_biet: 'll.la_loi_dac_biet',
+  la_loi_noi_bo: 'll.la_loi_noi_bo',
 };
 
 const rawFile = express.raw({ type: () => true, limit: '15mb' });
@@ -83,12 +83,12 @@ router.get(
         { header: 'Mã vật tư', key: 'ma_vat_tu', width: 15 },
         { header: 'Tên vật tư', key: 'ten_vat_tu', width: 30 },
         { header: 'Tên lỗi', key: 'ten_loi', width: 35 },
-        { header: 'Lỗi đặc biệt', key: '_dac_biet_txt', width: 12 },
+        { header: 'Lỗi nội bộ', key: '_noi_bo_txt', width: 12 },
         { header: 'Mục đích', key: '_muc_dich_txt', width: 16 },
       ],
       rows: result.rows.map((r) => ({
         ...r,
-        _dac_biet_txt: r.la_loi_dac_biet ? 'Có' : '',
+        _noi_bo_txt: r.la_loi_noi_bo ? 'Có' : '',
         _muc_dich_txt: MUC_DICH_LABEL[r.muc_dich] || r.muc_dich,
       })),
     });
@@ -122,7 +122,7 @@ router.post(
 );
 
 // Đếm dữ liệu đang dùng 1 loại lỗi: báo cáo gán nhãn nó (loi_chuan_id) + dòng hư bỏ chi tiết.
-// Có dữ liệu = loại lỗi bị KHÓA "bản chất" (mục đích, cờ lỗi đặc biệt), chỉ còn đổi tên được.
+// Có dữ liệu = loại lỗi bị KHÓA "bản chất" (mục đích, cờ lỗi nội bộ), chỉ còn đổi tên được.
 // Chạy tuần tự (không Promise.all) vì có thể nhận 1 client trong transaction.
 async function demSuDung(db, id) {
   const nhan = await db.query('SELECT COUNT(*)::int AS n FROM BaoCao WHERE loi_chuan_id = $1', [id]);
@@ -141,7 +141,7 @@ async function demSuDung(db, id) {
 }
 
 // GET /api/loailoi/:id/su-dung - loại lỗi này đã có dữ liệu dùng chưa (FE dùng để khóa ô
-// mục đích / lỗi đặc biệt trong form sửa, kèm lý do).
+// mục đích / lỗi nội bộ trong form sửa, kèm lý do).
 router.get(
   '/:id/su-dung',
   async (req, res) => {
@@ -166,37 +166,37 @@ router.post(
   '/',
   requireStaff,
   async (req, res) => {
-    const { ma_vat_tu, ten_loi, la_loi_dac_biet = false } = req.body;
+    const { ma_vat_tu, ten_loi, la_loi_noi_bo = false } = req.body;
     if (!ma_vat_tu || !ten_loi) {
       throw new AppError(400, 'Thiếu ma_vat_tu hoặc ten_loi');
     }
-    // Lỗi đặc biệt luôn khóa muc_dich = 'gan_nhan': thao tác nội bộ, báo cáo gọi đích
+    // Lỗi nội bộ luôn khóa muc_dich = 'gan_nhan': thao tác nội bộ, báo cáo gọi đích
     // danh, và cơ chế loại khỏi tổng lô chạy theo nhãn lỗi chuẩn.
-    const muc_dich = la_loi_dac_biet ? 'gan_nhan' : chuanHoaMucDich(req.body.muc_dich);
+    const muc_dich = la_loi_noi_bo ? 'gan_nhan' : chuanHoaMucDich(req.body.muc_dich);
     const vt = await pool.query('SELECT ma_vat_tu FROM VatTu WHERE ma_vat_tu = $1', [
       ma_vat_tu,
     ]);
     if (!vt.rows[0]) throw new AppError(400, 'Mã vật tư không tồn tại');
 
     const result = await pool.query(
-      'INSERT INTO LoaiLoi (ma_vat_tu, ten_loi, la_loi_dac_biet, muc_dich) VALUES ($1, $2, $3, $4) RETURNING *',
-      [ma_vat_tu, ten_loi, !!la_loi_dac_biet, muc_dich]
+      'INSERT INTO LoaiLoi (ma_vat_tu, ten_loi, la_loi_noi_bo, muc_dich) VALUES ($1, $2, $3, $4) RETURNING *',
+      [ma_vat_tu, ten_loi, !!la_loi_noi_bo, muc_dich]
     );
     res.status(201).json(result.rows[0]);
   }
 );
 
 // PUT /api/loailoi/:id - sửa loại lỗi (admin / thủ kho).
-// Loại lỗi CHƯA có dữ liệu dùng: đổi tự do (tên, mục đích, cờ lỗi đặc biệt).
+// Loại lỗi CHƯA có dữ liệu dùng: đổi tự do (tên, mục đích, cờ lỗi nội bộ).
 // Loại lỗi ĐÃ có dữ liệu dùng (báo cáo gán nhãn hoặc hư bỏ chi tiết): "bản chất" bị KHÓA -
-// chỉ đổi được tên. Đổi mục đích / bật-tắt cờ đặc biệt sẽ diễn giải lại toàn bộ lịch sử
+// chỉ đổi được tên. Đổi mục đích / bật-tắt cờ nội bộ sẽ diễn giải lại toàn bộ lịch sử
 // (mất dữ liệu, hoặc đẩy số lượng sang phần khác của lô làm vượt trần) nên bị TỪ CHỐI (409).
 // Muốn dùng theo cách khác -> tạo loại lỗi mới.
 router.put(
   '/:id',
   requireStaff,
   async (req, res) => {
-    const { ten_loi, la_loi_dac_biet } = req.body;
+    const { ten_loi, la_loi_noi_bo } = req.body;
     if (!ten_loi) throw new AppError(400, 'Thiếu ten_loi');
     const mucDichGui =
       req.body.muc_dich === undefined ? null : chuanHoaMucDich(req.body.muc_dich);
@@ -213,12 +213,12 @@ router.put(
       const hienTai = cur.rows[0];
       if (!hienTai) throw new AppError(404, 'Không tìm thấy loại lỗi');
 
-      // Giá trị sau khi sửa. Lỗi đặc biệt luôn khóa mục đích = 'gan_nhan'.
-      const dacBietMoi = !!(la_loi_dac_biet ?? hienTai.la_loi_dac_biet);
-      const mucDichMoi = dacBietMoi ? 'gan_nhan' : mucDichGui ?? hienTai.muc_dich;
+      // Giá trị sau khi sửa. Lỗi nội bộ luôn khóa mục đích = 'gan_nhan'.
+      const noiBoMoi = !!(la_loi_noi_bo ?? hienTai.la_loi_noi_bo);
+      const mucDichMoi = noiBoMoi ? 'gan_nhan' : mucDichGui ?? hienTai.muc_dich;
 
       const doi = [];
-      if (dacBietMoi !== hienTai.la_loi_dac_biet) doi.push('cờ "lỗi đặc biệt"');
+      if (noiBoMoi !== hienTai.la_loi_noi_bo) doi.push('cờ "lỗi nội bộ"');
       if (mucDichMoi !== hienTai.muc_dich) doi.push('mục đích dùng');
 
       if (doi.length) {
@@ -242,8 +242,8 @@ router.put(
       }
 
       const result = await client.query(
-        'UPDATE LoaiLoi SET ten_loi = $1, la_loi_dac_biet = $2, muc_dich = $3 WHERE id = $4 RETURNING *',
-        [ten_loi, dacBietMoi, mucDichMoi, req.params.id]
+        'UPDATE LoaiLoi SET ten_loi = $1, la_loi_noi_bo = $2, muc_dich = $3 WHERE id = $4 RETURNING *',
+        [ten_loi, noiBoMoi, mucDichMoi, req.params.id]
       );
 
       await client.query('COMMIT');

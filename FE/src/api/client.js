@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildErrorMessage } from '../errorMessages';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -28,7 +29,7 @@ client.interceptors.response.use(
 
 // Lấy thông báo lỗi từ response backend, có fallback
 export function getErrorMessage(err) {
-  return err.response?.data?.message || err.message || 'Đã có lỗi xảy ra';
+  return buildErrorMessage(err.response?.data) || err.response?.data?.message || err.message || 'Đã có lỗi xảy ra';
 }
 
 // Gửi 1 file Excel (File object) lên endpoint import, trả về JSON kết quả

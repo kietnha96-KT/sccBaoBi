@@ -21,7 +21,7 @@ import { ALL_LIMIT, PAGE_SIZE } from '../constants';
 import { loValue, loLabel, nccValue, nccLabel } from '../selectHelpers';
 
 // Báo công (giờ làm) theo lô - KHÁC dashboard năng suất. Tổng giờ làm từng lô, tách 2:
-// giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI ĐẶC BIỆT.
+// giờ theo LỖI THƯỜNG (gồm cả báo cáo chưa gán nhãn) và giờ theo LỖI NỘI BỘ.
 // Báo cáo làm chung -> giờ chia đều cho mỗi người rồi cộng dồn.
 // Phạm vi: toàn bộ lịch sử của lô (không lọc ngày), CHỈ báo cáo lựa chính.
 // Chi tiết giờ theo người xem ở popup (bấm dòng -> nút Xem trên thanh chọn).
@@ -144,7 +144,7 @@ export default function DashboardBaoCongLoPage() {
               <>
                 Tổng <strong>{gioText(selectedLo.tong_gio_lam)}</strong>
                 {' · '}thường {gioText(selectedLo.gio_thuong)}
-                {' · '}<span className="text-warning">đặc biệt {gioText(selectedLo.gio_dac_biet)}</span>
+                {' · '}<span className="text-warning">nội bộ {gioText(selectedLo.gio_noi_bo)}</span>
               </>
             )
           }
@@ -169,7 +169,7 @@ export default function DashboardBaoCongLoPage() {
                   {/* <th>Số báo cáo</th> */}
                   <SortableTh label="Tổng giờ" sortKey="tong_gio_lam" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Giờ lỗi thường" sortKey="gio_thuong" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
-                  <SortableTh label="Giờ lỗi đặc biệt" sortKey="gio_dac_biet" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Giờ lỗi nội bộ" sortKey="gio_noi_bo" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
@@ -186,8 +186,8 @@ export default function DashboardBaoCongLoPage() {
                       ? <span className="text-blue fw-600">{gioText(r.gio_thuong)}</span>
                       : <span className="field-hint">—</span>}</td>
                     <td>
-                      {Number(r.gio_dac_biet) > 0
-                        ? <span className="text-warning fw-600">{gioText(r.gio_dac_biet)}</span>
+                      {Number(r.gio_noi_bo) > 0
+                        ? <span className="text-warning fw-600">{gioText(r.gio_noi_bo)}</span>
                         : <span className="field-hint">—</span>}
                     </td>
                   </tr>
