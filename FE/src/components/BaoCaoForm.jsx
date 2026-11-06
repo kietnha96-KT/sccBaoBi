@@ -132,6 +132,8 @@ export default function BaoCaoForm({ id, onDone }) {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [readOnlyNotice, setReadOnlyNotice] = useState('');
+  // Đã bấm Lưu mà chưa chọn "Xử lý nội bộ" -> hiện nhắc đỏ ngay dưới ô đó
+  const [thieuNoiBo, setThieuNoiBo] = useState(false);
 
   // nạp báo cáo cũ khi ở chế độ sửa
   useEffect(() => {
@@ -148,7 +150,9 @@ export default function BaoCaoForm({ id, onDone }) {
           loi_nguoi_dung: bc.loi_nguoi_dung || '',
           la_lua_lai: bc.la_lua_lai,
           // nếu nhãn hiện tại là lỗi thường thì không khớp option nào -> dropdown để trống
-          loi_noi_bo_id: bc.loi_chuan_id ?? '',
+          // '' = chưa chọn | 'khong' = chọn "Không" | id = lỗi nội bộ (nhãn lỗi thường không khớp
+          // option nào -> dropdown hiện "Không")
+          loi_noi_bo_id: bc.loi_chuan_id ?? 'khong',
           ghi_chu: bc.ghi_chu || '',
           nhansu_ids: bc.nhansu_tham_gia.map((n) => n.id),
           chi_tiet_loi: Object.fromEntries(
@@ -188,6 +192,11 @@ export default function BaoCaoForm({ id, onDone }) {
       ) || 0
     : 0;
 
+  // Vật tư có lỗi nội bộ -> bắt buộc chọn 1 trong: "Không" hoặc 1 lỗi nội bộ (ô trống ban đầu
+  // không lưu được). Báo cáo lựa lại không dùng ô này (bị khóa).
+  const batBuocNoiBo = noiBoList.length > 0 && !form.la_lua_lai;
+  const giaTriNoiBo = loiNoiBoChon ? String(loiNoiBoChon.id) : form.loi_noi_bo_id === '' ? '' : 'khong';
+
   function toggleNhanSu(nsId) {
     setForm((f) => ({
       ...f,
@@ -200,6 +209,7 @@ export default function BaoCaoForm({ id, onDone }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setThieuNoiBo(false);
 
     // Các ô bắt buộc nhập (không được bỏ trống)
     if (!maVatTuFilter) {
@@ -224,6 +234,15 @@ export default function BaoCaoForm({ id, onDone }) {
     }
     if (form.nhansu_ids.length === 0) {
       setError('Phải chọn ít nhất 1 nhân viên tham gia');
+      return;
+    }
+    if (batBuocNoiBo && giaTriNoiBo === '') {
+      setError('Phải chọn Xử lý nội bộ (chọn "Không" nếu không có)');
+      setThieuNoiBo(true);
+      // đưa người dùng tới ngay ô đang thiếu (ô này nằm thấp trong form, dễ không thấy)
+      const el = document.getElementById('loi_noi_bo_id');
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el?.focus({ preventScroll: true });
       return;
     }
 
@@ -430,14 +449,21 @@ export default function BaoCaoForm({ id, onDone }) {
 
       {noiBoList.length > 0 && (
         <div className="field mt-14">
-          <label htmlFor="loi_noi_bo_id">Xử lý nội bộ (nếu có)</label> 
+          <label htmlFor="loi_noi_bo_id">
+            Xử lý nội bộ{batBuocNoiBo && <span className="req">*</span>}
+          </label>
           <select
             id="loi_noi_bo_id"
-            value={loiNoiBoChon ? loiNoiBoChon.id : ''}
-            onChange={(e) => setForm({ ...form, loi_noi_bo_id: e.target.value })}
+            value={giaTriNoiBo}
+            onChange={(e) => {
+              setThieuNoiBo(false);
+              setForm({ ...form, loi_noi_bo_id: e.target.value });
+            }}
             disabled={disabled || form.la_lua_lai}
+            aria-invalid={thieuNoiBo && giaTriNoiBo === ''}
           >
             <option value=""></option>
+            <option value="khong">Không</option>
             {noiBoList.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.ten_loi}
@@ -447,8 +473,13 @@ export default function BaoCaoForm({ id, onDone }) {
           {loiNoiBoChon ? (
             <span className="field-hint">
               {selectedLo && (
-                <> Lỗi này đã xử lý: <strong>{formatSoLuong(daXuLyLoiChon)}</strong>.</>
+                <> Đã xử lý: <strong>{formatSoLuong(daXuLyLoiChon)} / {formatSoLuong(selectedLo.so_luong_lo)}</strong>. 
+                Còn lại: <strong>{formatSoLuong(Math.max(Number(selectedLo.so_luong_lo) - daXuLyLoiChon, 0))}</strong>.</>
               )}
+            </span>
+          ) : thieuNoiBo && giaTriNoiBo === '' ? (
+            <span className="field-hint text-danger">
+              Phải chọn 1 mục. Nếu không có xử lý nội bộ thì chọn "Không".
             </span>
           ) : (
             <span className="field-hint">
