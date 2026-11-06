@@ -138,8 +138,11 @@ export default function BaoCaoForm({ id, onDone }) {
   // nạp báo cáo cũ khi ở chế độ sửa
   useEffect(() => {
     if (!isEdit) return;
+    // cờ huy: effect chạy lại / form đóng thì bỏ qua kết quả của lần tải cũ (tránh ghi đè muộn)
+    let huy = false;
     getBaoCao(id)
       .then((bc) => {
+        if (huy) return;
         setForm({
           ngay: bc.ngay.substring(0, 10),
           lo_id: bc.lo_id,
@@ -164,13 +167,30 @@ export default function BaoCaoForm({ id, onDone }) {
           setReadOnlyNotice('Báo cáo này không còn trong ngày nhập, bạn không thể sửa (chỉ admin mới sửa được).');
         }
       })
-      .catch((err) => setError(getErrorMessage(err)))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!huy) setError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (!huy) setLoading(false);
+      });
+    return () => {
+      huy = true;
+    };
   }, [id, isEdit, user, isAdmin]);
 
-  // nạp danh sách lô theo vật tư đang lọc
+  // nạp danh sách lô theo vật tư đang lọc.
+  // Lúc mới mở form (maVatTuFilter còn trống) đã bắn 1 yêu cầu lấy TẤT CẢ lô; ngay sau đó khi biết
+  // vật tư thì bắn yêu cầu thứ 2 (chỉ lô của vật tư). 2 yêu cầu có thể về sai thứ tự -> kết quả
+  // "tất cả lô" về sau sẽ ghi đè kết quả đã lọc (ô Lô hiện lô của mã vật tư khác). Cờ `huy`:
+  // khi vật tư đổi, kết quả của yêu cầu cũ bị bỏ qua.
   useEffect(() => {
-    listLo({ ma_vat_tu: maVatTuFilter || undefined, limit: ALL_LIMIT }).then((res) => setLoList(res.data));
+    let huy = false;
+    listLo({ ma_vat_tu: maVatTuFilter || undefined, limit: ALL_LIMIT }).then((res) => {
+      if (!huy) setLoList(res.data);
+    });
+    return () => {
+      huy = true;
+    };
   }, [maVatTuFilter]);
 
   const selectedLo = loList.find((l) => l.id === Number(form.lo_id)) || null;

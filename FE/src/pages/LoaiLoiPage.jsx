@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   listLoaiLoi,
   createLoaiLoi,
@@ -65,8 +65,12 @@ export default function LoaiLoiPage() {
   // Loại lỗi đang sửa đã có dữ liệu dùng chưa (nạp khi mở form sửa). Có dữ liệu thì khóa
   // mục đích + cờ lỗi nội bộ, chỉ cho đổi tên (backend cũng từ chối nếu cố đổi).
   const [suDung, setSuDung] = useState(null);
+  // số thứ tự của lần nạp "đã có dữ liệu dùng chưa": mở loại lỗi khác / mở form thêm thì kết quả
+  // của lần nạp trước (về muộn) bị bỏ qua, không ghi đè lên loại lỗi đang mở.
+  const suDungReqRef = useRef(0);
 
   function openCreate() {
+    suDungReqRef.current += 1;
     setForm({ ma_vat_tu: filters.ma_vat_tu || '', ten_loi: '', la_loi_noi_bo: false, muc_dich: 'gan_nhan' });
     setFormError('');
     setSuDung(null);
@@ -84,9 +88,14 @@ export default function LoaiLoiPage() {
     setFormError('');
     setSuDung(null);
     setModal({ edit: row });
+    const reqId = ++suDungReqRef.current;
     loaiLoiSuDung(row.id)
-      .then(setSuDung)
-      .catch(() => setSuDung(null));
+      .then((r) => {
+        if (reqId === suDungReqRef.current) setSuDung(r);
+      })
+      .catch(() => {
+        if (reqId === suDungReqRef.current) setSuDung(null);
+      });
   }
 
   // Đã có dữ liệu dùng -> khóa "bản chất" (mục đích, lỗi nội bộ), chỉ đổi tên được.

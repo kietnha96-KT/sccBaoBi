@@ -43,6 +43,7 @@ const LIST_SELECT = `
     l.so_lo, l.ma_vat_tu, l.so_luong_lo, v.ten_vat_tu,
     ns.ho_ten AS nguoi_nhap_ho_ten,
     ll.ten_loi AS loi_chuan_ten,
+    COALESCE(ll.la_loi_noi_bo, FALSE) AS loi_chuan_la_noi_bo,
     -- "trong ngày nhập" tính theo múi giờ VN, không theo UTC của server
     ((bc.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       = (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS co_the_sua_xoa_hom_nay,
@@ -162,6 +163,9 @@ router.get(
       chi_tiet_loi: (r.chi_tiet_loi || [])
         .map((x) => `${x.ten_loi}: ${Math.round(Number(x.so_luong) || 0).toLocaleString('vi-VN')}`)
         .join('; '),
+      // "Xử lý nội bộ": tên lỗi nội bộ của báo cáo (ô chọn lúc nhập, hoặc nhãn thủ kho gán nếu
+      // nhãn đó là lỗi nội bộ); để trống nếu không xử lý nội bộ
+      xu_ly_noi_bo: r.loi_chuan_la_noi_bo ? r.loi_chuan_ten : '',
       la_lua_lai: r.la_lua_lai ? 'Có' : 'Không',
       // năng suất trong CTE chưa làm tròn -> làm tròn 2 số ở đây, giữ kiểu số cho Excel
       nang_suat_8h: r.nang_suat_8h == null ? null : Math.round(Number(r.nang_suat_8h) * 100) / 100,
@@ -180,6 +184,7 @@ router.get(
         { header: 'Hư bỏ', key: 'hu_bo', width: 12 },
         { header: 'Tổng lựa', key: 'tong_lua', width: 12 },
         { header: 'Lỗi đi kèm', key: 'chi_tiet_loi', width: 40 },
+        { header: 'Xử lý nội bộ', key: 'xu_ly_noi_bo', width: 22 },
         { header: 'Giờ bắt đầu', key: 'tg_bat_dau', width: 12 },
         { header: 'Giờ kết thúc', key: 'tg_ket_thuc', width: 12 },
         { header: 'Năng suất (quy 8h)', key: 'nang_suat_8h', width: 16 },
