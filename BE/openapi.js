@@ -263,6 +263,7 @@ const spec = {
     { name: 'LoaiLoi', description: 'Danh mục lỗi chuẩn theo vật tư (chỉ admin sửa/xóa)' },
     { name: 'BaoCao', description: 'Báo cáo lựa vật tư' },
     { name: 'Dashboard', description: '4 dashboard năng suất' },
+    { name: 'ViTriKho', description: 'Vị trí kho: bản đồ ô, lô nằm ở ô nào, nhập/xuất/chuyển/điều chỉnh (đọc: mọi người dùng; ghi: admin hoặc thủ kho)' },
   ],
   paths: {
     '/api/test-db': {
@@ -904,6 +905,106 @@ const spec = {
       },
     },
     '/api/dashboard/thoigian/export': { get: { tags: ['Dashboard'], summary: 'Xuất Excel dashboard theo thời gian', parameters: [pTuNgay, pDenNgay, pMaVatTu, pLaLuaLaiDashboard, pMaNcc, { name: 'group_by', in: 'query', schema: { type: 'string', enum: ['ngay', 'thang'] } }], responses: { 200: { description: 'File Excel' } } } },
+
+    '/api/kho/layout': { get: { tags: ['ViTriKho'], summary: 'Bố cục không gian kho (kho-layout.json) để dựng bản đồ 3D', responses: { 200: { description: 'OK' } } } },
+    '/api/vi-tri': {
+      get: {
+        tags: ['ViTriKho'],
+        summary: 'Danh mục ô kho + tóm tắt hàng đang chứa',
+        parameters: [
+          { name: 'ke', in: 'query', schema: { type: 'string' }, description: 'Mã kệ, vd K05, S1' },
+          { name: 'nhom', in: 'query', schema: { type: 'string' }, description: 'Nhóm drive-in, vd "Drive-in 5"' },
+          { name: 'khu', in: 'query', schema: { type: 'string' } },
+          { name: 'tang', in: 'query', schema: { type: 'integer' } },
+          { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Tìm theo mã ô (chứa chuỗi)' },
+          { name: 'co_hang', in: 'query', schema: { type: 'string', enum: ['1'] }, description: 'Chỉ ô đang có hàng' },
+          { name: 'gon', in: 'query', schema: { type: 'string', enum: ['1'] }, description: "Chế độ gọn cho bản đồ 3D: trả { cot, data: [[ma_vi_tri, so_lo_trong_o, so_lo_dau], ...], total } (nhỏ hơn ~90%)" },
+          pMaVatTu,
+        ],
+        responses: { 200: { description: '{ data: [ô...], total }' }, 401: responses.Unauthorized },
+      },
+    },
+    '/api/vi-tri/goi-y': {
+      get: {
+        tags: ['ViTriKho'],
+        summary: 'Gợi ý mã ô cho ô tìm kiếm (mã chứa q, bắt đầu bằng q xếp trước)',
+        parameters: [
+          { name: 'q', in: 'query', schema: { type: 'string' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 10, maximum: 30 } },
+        ],
+        responses: { 200: { description: '{ data: [mã ô], total }' } },
+      },
+    },
+    '/api/vi-tri/tong-theo-lo': {
+      get: {
+        tags: ['ViTriKho'],
+        summary: 'Các lô ĐANG nằm trong kho (mỗi vật tư + số lô một dòng): tổng SL trong kho (cộng Lo_ViTri), số ô, cờ co_chua_biet. Độc lập với bảng Lo bên lựa',
+        responses: { 200: { description: '{ data: [{ ma_vat_tu, so_lo, so_o, tong_so_luong, co_chua_biet }] }' } },
+      },
+    },
+    '/api/vi-tri/theo-lo': {
+      get: {
+        tags: ['ViTriKho'],
+        summary: 'Các ô mà 1 lô (mã vật tư + số lô, không phân biệt hoa/thường) đang nằm; lô chưa có ô nào -> data rỗng',
+        parameters: [
+          { name: 'ma_vat_tu', in: 'query', required: true, schema: { type: 'string' } },
+          { name: 'so_lo', in: 'query', required: true, schema: { type: 'string' } },
+        ],
+        responses: { 200: { description: '{ ma_vat_tu, so_lo, data: [ô...] }' }, 400: responses.BadRequest },
+      },
+    },
+    '/api/vi-tri/giao-dich': {
+      get: {
+        tags: ['ViTriKho'],
+        summary: 'Sổ giao dịch vị trí (mới nhất trước)',
+        parameters: [
+          pPage, pLimit,
+          { name: 'so_lo', in: 'query', schema: { type: 'string' }, description: 'Khớp đúng cả chuỗi (không phân biệt hoa/thường)' },
+          { name: 'ma_vi_tri', in: 'query', schema: { type: 'string' } },
+          { name: 'thao_tac', in: 'query', schema: { type: 'string', enum: ['nhap', 'xuat', 'chuyen_di', 'chuyen_den', 'dieu_chinh'] } },
+          { name: 'nhom_id', in: 'query', schema: { type: 'string', format: 'uuid' }, description: 'Ghép cặp chuyen_di / chuyen_den' },
+          pMaVatTu,
+          { name: 'sort_by', in: 'query', schema: { type: 'string', enum: ['thoi_gian', 'thao_tac', 'ma_vi_tri', 'so_lo', 'so_luong'] } },
+          { name: 'sort_dir', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'] } },
+        ],
+        responses: { 200: { description: 'OK' } },
+      },
+    },
+    '/api/vi-tri/{ma_vi_tri}': {
+      get: { tags: ['ViTriKho'], summary: 'Một ô + các lô đang chứa', parameters: [{ name: 'ma_vi_tri', in: 'path', required: true, schema: { type: 'string' }, example: 'K05-O03-T2' }], responses: { 200: { description: 'OK' }, 404: responses.NotFound } },
+    },
+    '/api/vi-tri/nhap': {
+      post: {
+        tags: ['ViTriKho'],
+        summary: 'Đặt lô vào ô (cộng dồn nếu đã có) - admin/thủ kho. Lô = ma_vat_tu (phải có trong danh mục VatTu) + so_lo gõ tự do, KHÔNG cần lô đã khai bên lựa',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'so_lo', 'ma_vi_tri'], properties: { ma_vat_tu: { type: 'string' }, so_lo: { type: 'string' }, ma_vi_tri: { type: 'string' }, so_luong: { type: 'number', nullable: true, description: 'Bỏ trống = chưa biết số' }, ghi_chu: { type: 'string' } } } } } },
+        responses: { 201: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
+      },
+    },
+    '/api/vi-tri/xuat': {
+      post: {
+        tags: ['ViTriKho'],
+        summary: 'Lấy lô ra khỏi ô - admin/thủ kho',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'so_lo', 'ma_vi_tri'], properties: { ma_vat_tu: { type: 'string' }, so_lo: { type: 'string' }, ma_vi_tri: { type: 'string' }, so_luong: { type: 'number', nullable: true, description: 'Bỏ trống = lấy hết' }, ghi_chu: { type: 'string' } } } } } },
+        responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
+      },
+    },
+    '/api/vi-tri/chuyen': {
+      post: {
+        tags: ['ViTriKho'],
+        summary: 'Chuyển lô từ ô A sang ô B (1 transaction, 2 dòng sổ chung nhom_id) - admin/thủ kho',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'so_lo', 'tu_vi_tri', 'den_vi_tri'], properties: { ma_vat_tu: { type: 'string' }, so_lo: { type: 'string' }, tu_vi_tri: { type: 'string' }, den_vi_tri: { type: 'string' }, so_luong: { type: 'number', nullable: true, description: 'Bỏ trống = chuyển hết' }, ghi_chu: { type: 'string' } } } } } },
+        responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
+      },
+    },
+    '/api/vi-tri/dieu-chinh': {
+      post: {
+        tags: ['ViTriKho'],
+        summary: 'Sửa số lượng của lô trong ô (null = chưa biết, 0 = bỏ khỏi ô) - admin/thủ kho',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ma_vat_tu', 'so_lo', 'ma_vi_tri', 'so_luong'], properties: { ma_vat_tu: { type: 'string' }, so_lo: { type: 'string' }, ma_vi_tri: { type: 'string' }, so_luong: { type: 'number', nullable: true }, ghi_chu: { type: 'string' } } } } } },
+        responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
+      },
+    },
   },
 };
 

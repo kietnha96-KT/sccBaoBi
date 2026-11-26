@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import PwaUpdateButton from './PwaUpdateButton';
 
@@ -21,6 +21,13 @@ const ICON_PATHS = {
   tag: 'M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z M7 7h.01',
   truck: 'M1 3h15v13H1z M16 8h4l3 3v5h-7V8Z M5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
   calendar: 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18',
+  map: 'M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4Z M8 2v16 M16 6v16',
+  list: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01',
+  // 3 icon của mục cha
+  clipboard: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z M9 14l2 2 4-4',
+  warehouse: 'M3 21V8l9-5 9 5v13 M7 21v-9h10v9 M7 16h10',
+  sliders: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6',
+  chevron: 'M9 18l6-6-6-6',
 };
 
 function Icon({ name }) {
@@ -58,6 +65,12 @@ const NAV_DASHBOARD = [
   { to: '/dashboard/hu-bo', icon: 'alert', label: 'Thống kê hư bỏ' },
   { to: '/dashboard/bao-cong', icon: 'clock', label: 'Thống kê công xử lý' },
 ];
+// Quản lý VỊ TRÍ kho (bản đồ ô, lô nằm ở đâu, nhập/xuất/chuyển ô): tách hẳn khỏi nhóm "Xử lý hàng" (lựa vật tư, báo cáo).
+// Mọi vai trò xem được; nút nhập/xuất/chuyển trên bản đồ chỉ hiện với admin / thủ kho (BE cũng chặn bằng requireStaff).
+const NAV_KHO = [
+  { to: '/kho/ban-do', icon: 'map', label: 'Bản đồ kho' },
+  { to: '/kho/lich-su', icon: 'list', label: 'Lịch sử vị trí' },
+];
 const NAV_DANHMUC = [
   { to: '/lo', icon: 'archive', label: 'Lô' },
   { to: '/loai-loi', icon: 'tag', label: 'Loại lỗi' },
@@ -68,19 +81,64 @@ const NAV_DANHMUC_ADMIN = [
   { to: '/nha-cung-cap', icon: 'truck', label: 'Nhà cung cấp' },
 ];
 
-function NavGroup({ items }) {
-  return items.map((item) => (
-    <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass} title={item.label}>
-      <Icon name={item.icon} />
-      <span className="sidebar-text">{item.label}</span>
-    </NavLink>
-  ));
+// Đường dẫn hiện tại có thuộc mục cha này không (kể cả trang con, vd /baocao/12/sua thuộc /baocao).
+const thuocNhom = (items, pathname) => items.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'));
+
+// 1 mục cha (bấm để xổ / thu) + các mục con. Các mục cha độc lập nhau: mở mục này không đóng mục kia.
+function NavSection({ title, icon, items, open, active, onToggle, onNavigate }) {
+  return (
+    <div className="sidebar-group">
+      <button
+        type="button"
+        className={'sidebar-parent' + (open ? ' open' : '') + (active ? ' has-active' : '')}
+        aria-expanded={open}
+        onClick={onToggle}
+        title={title}
+      >
+        <Icon name={icon} />
+        <span className="sidebar-text sidebar-parent-title">{title}</span>
+        <span className="sidebar-text sidebar-parent-chevron">
+          <Icon name="chevron" />
+        </span>
+      </button>
+      {open &&
+        items.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass} title={item.label} onClick={onNavigate}>
+            <Icon name={item.icon} />
+            <span className="sidebar-text">{item.label}</span>
+          </NavLink>
+        ))}
+    </div>
+  );
 }
 
 export default function Layout() {
   const { user, logout, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Menu 2 cấp: 3 mục cha, lọc mục con theo vai trò (mục cha không còn mục con nào thì ẩn)
+  const sections = [
+    { key: 'xuly', title: 'Xử lý hàng', icon: 'clipboard', items: [...NAV_MAIN, ...NAV_BAOCAO, ...(isStaff ? NAV_DASHBOARD : [])] },
+    { key: 'kho', title: 'Quản lý vị trí kho', icon: 'warehouse', items: NAV_KHO },
+    {
+      key: 'danhmuc',
+      title: 'Quản trị danh mục',
+      icon: 'sliders',
+      items: isStaff ? [...NAV_DANHMUC, ...(isAdmin ? NAV_DANHMUC_ADMIN : [])] : [],
+    },
+  ].filter((s) => s.items.length > 0);
+  const activeKey = sections.find((s) => thuocNhom(s.items, pathname))?.key;
+
+  // Mục cha đang xổ: ban đầu là mục chứa trang đang xem. Mở thêm mục khác KHÔNG đóng mục đã mở.
+  const [openKeys, setOpenKeys] = useState(() => (activeKey ? { [activeKey]: true } : {}));
+  // Chuyển sang trang thuộc mục đang đóng (vd bấm link trong nội dung) thì tự xổ mục đó ra.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    if (activeKey && !openKeys[activeKey]) setOpenKeys({ ...openKeys, [activeKey]: true });
+  }
 
   // Sidebar dạng mini-variant (desktop):
   //  - mặc định thu gọn, chỉ hiện icon
@@ -158,28 +216,19 @@ export default function Layout() {
             </button>
           </div>
 
-          <nav className="sidebar-nav" onClick={closeMobile}>
-            <div className="sidebar-section">
-              <span className="sidebar-text">Nhập báo cáo</span>
-            </div>
-            <NavGroup items={NAV_MAIN} />
-
-            <div className="sidebar-section">
-              <span className="sidebar-text">Báo cáo</span>
-            </div>
-            <NavGroup items={NAV_BAOCAO} />
-
-            {isStaff && (
-              <>
-                <NavGroup items={NAV_DASHBOARD} />
-
-                <div className="sidebar-section">
-                  <span className="sidebar-text">Quản trị danh mục</span>
-                </div>
-                <NavGroup items={NAV_DANHMUC} />
-                {isAdmin && <NavGroup items={NAV_DANHMUC_ADMIN} />}
-              </>
-            )}
+          <nav className="sidebar-nav">
+            {sections.map((s) => (
+              <NavSection
+                key={s.key}
+                title={s.title}
+                icon={s.icon}
+                items={s.items}
+                open={!!openKeys[s.key]}
+                active={s.key === activeKey}
+                onToggle={() => setOpenKeys((prev) => ({ ...prev, [s.key]: !prev[s.key] }))}
+                onNavigate={closeMobile}
+              />
+            ))}
           </nav>
 
           <div className="sidebar-footer">

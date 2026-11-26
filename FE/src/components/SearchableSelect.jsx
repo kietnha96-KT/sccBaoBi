@@ -30,6 +30,7 @@ export default function SearchableSelect({
   allowClear = true,
   clearLabel = 'Tất cả',
   disabled = false,
+  maxItems = 200, // số dòng tối đa vẽ ra (danh sách quá dài thì cắt cho khỏi giật; tăng lên khi cần hiện đủ)
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -58,8 +59,8 @@ export default function SearchableSelect({
   const filtered = useMemo(() => {
     const q = stripDiacritics(query.trim());
     const base = !q ? options : options.filter((o) => stripDiacritics(getLabel(o)).includes(q));
-    return base.slice(0, 200); // giới hạn render để không giật lag khi danh sách rất dài
-  }, [options, query, getLabel]);
+    return base.slice(0, maxItems); // giới hạn render để không giật lag khi danh sách rất dài
+  }, [options, query, getLabel, maxItems]);
 
   function openMenu() {
     setQuery('');

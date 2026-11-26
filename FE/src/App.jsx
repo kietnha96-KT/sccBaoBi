@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -18,6 +19,10 @@ import DashboardLoPage from './pages/DashboardLoPage';
 import DashboardBaoCongLoPage from './pages/DashboardBaoCongLoPage';
 import DashboardHuBoPage from './pages/DashboardHuBoPage';
 import DashboardGioLamNgayPage from './pages/DashboardGioLamNgayPage';
+import KhoLichSuPage from './pages/KhoLichSuPage';
+
+// Bản đồ kho kéo theo thư viện three.js (nặng) -> chỉ tải khi vào trang này, không làm chậm các trang còn lại
+const BanDoKhoPage = lazy(() => import('./pages/BanDoKhoPage'));
 
 function App() {
   return (
@@ -84,6 +89,17 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Quản lý vị trí kho: mọi vai trò xem được; ghi (nhập/xuất/chuyển) chỉ admin + thủ kho, BE chặn bằng requireStaff */}
+            <Route
+              path="/kho/ban-do"
+              element={
+                <Suspense fallback={<div className="spinner-text">Đang tải bản đồ kho...</div>}>
+                  <BanDoKhoPage />
+                </Suspense>
+              }
+            />
+            <Route path="/kho/lich-su" element={<KhoLichSuPage />} />
 
             <Route
               path="/vat-tu"

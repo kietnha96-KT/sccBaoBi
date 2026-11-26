@@ -1,0 +1,107 @@
+/* Trang "Bản đồ kho" (quản lý vị trí kho). Mọi class bắt đầu bằng kho- để không đụng CSS chung.
+   Dùng lại biến màu của app (--surface, --border, --primary...). Cảnh 3D luôn nền sáng. */
+
+
+.kho-tools { padding: 14px 16px; margin-bottom: 14px; }
+.kho-toolbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+.kho-tool { min-width: 0; }
+.kho-tool > label { display: block; }
+.kho-tool-lot { min-width: 240px; flex: 1 1 240px; max-width: 360px; }
+.kho-find { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.kho-find-wrap { position: relative; display: inline-flex; }
+.kho-find input { width: 11rem; max-width: 100%; }
+.kho-find-wrap input { padding-right: 28px; }
+.kho-find-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.kho-find-clear:hover { background: var(--row-hover-bg); color: var(--text); }
+.kho-warn { font-size: 13px; color: var(--warning); }
+.kho-slider { display: flex; align-items: center; gap: 10px; min-height: 34px; }
+.kho-slider input[type='range'] { width: 170px; max-width: 100%; accent-color: var(--primary); }
+.kho-slider output { font-size: 13px; min-width: 8.5ch; font-variant-numeric: tabular-nums; }
+
+.kho-finder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.kho-chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 99px; border: 1px solid #e8590c; background: #fff4ec; color: #9a3a05; cursor: pointer; }
+.kho-chip:hover { background: #ffe8d6; }
+.kho-chip-on, .kho-chip-on:hover { background: #e8590c; color: #fff; } /* ô đang chọn trong dãy ô của lô */
+.kho-chip-on .kho-m { color: inherit; }
+
+.kho-more { display: contents; } /* desktop: các nhóm tùy chọn nằm thẳng trong thanh công cụ */
+.kho-more-btn { display: none; align-self: flex-end; }
+.kho-popctl-btn { display: none; }
+
+/* Khung 3D */
+.kho-stage { overflow: hidden; }
+/* Thẻ nhắc khi bản đồ đang ẩn */
+.kho-closed { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; }
+.kho-closed p { margin: 0; }
+.kho-slot { position: relative; height: clamp(460px, 74vh, 820px); }
+.kho-wrap { position: absolute; inset: 0; background: #e6ebf1; outline: none; }
+.kho-wrap.popmode {
+  position: fixed; inset: max(12px, 3vh) max(16px, 3vw); z-index: 40;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 0 0 100vmax rgba(8, 12, 18, 0.62);
+}
+/* Desktop: chừa chỗ cho thanh sidebar thu gọn bên trái để cửa sổ nhóm không bị che */
+@media (min-width: 901px) {
+  .kho-wrap.popmode { left: calc(var(--sidebar-collapsed-width) + 16px); }
+}
+.kho-host { position: absolute; inset: 0; }
+.kho-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.kho-canvas.go { cursor: pointer; }
+.kho-canvas:active { cursor: grabbing; }
+
+.kho-tip { position: absolute; pointer-events: none; z-index: 5; padding: 4px 9px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14); }
+.kho-hud { position: absolute; top: 10px; right: 10px; z-index: 6; padding: 4px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 13px; pointer-events: none; }
+.kho-loading, .kho-nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--text-muted); pointer-events: none; z-index: 4; }
+
+/* Thẻ ô đang chọn */
+.kho-card { position: absolute; z-index: 6; top: 10px; left: 10px; width: min(320px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow: auto; display: flex; flex-direction: column; gap: 3px; padding: 10px 40px 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14); }
+.kho-wrap.popmode .kho-card { top: var(--kho-pop-top, 64px); max-height: calc(100% - var(--kho-pop-top, 64px) - 12px); }
+.kho-card-code { font-size: 15px; font-weight: 600; }
+.kho-m { color: var(--text-muted); }
+.kho-card-x { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--row-hover-bg); color: var(--text); cursor: pointer; line-height: 1; font-size: 16px; }
+.kho-lots { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 4px; }
+.kho-lot { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.kho-lot-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kho-lot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kho-lot-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.kho-card-add { align-self: flex-start; margin-top: 4px; }
+.kho-card-links { display: flex; flex-direction: column; align-items: flex-start; margin-top: 4px; }
+.kho-link { font: inherit; font-size: 13px; color: var(--primary); background: none; border: 0; padding: 4px 0 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Cửa sổ riêng của nhóm / kệ */
+.kho-pophead { position: absolute; z-index: 8; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.kho-popleft { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Dãy ô của lô đang tìm trên thanh tiêu đề cửa sổ nhóm: dòng chữ 1 hàng, các nút ô 1 hàng riêng bên dưới (nhiều ô quá thì cuộn ngang trong hàng đó, chữ không bị trôi mất) (để thanh không cao lên và đè thẻ ô) */
+.kho-popfinder { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kho-popchips { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.kho-popchips > * { flex-shrink: 0; }
+.kho-wrap.has-finder { --kho-pop-top: 96px; } /* tiêu đề cửa sổ nhóm cao hơn khi có hàng ô -> thẻ ô và bảng tùy chọn nằm thấp xuống, không dính nhau */
+.kho-poptitle { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.kho-poptitle b { font-size: 16px; font-weight: 700; }
+.kho-poptitle span { color: var(--text-muted); font-size: 13px; }
+.kho-popctl { position: absolute; z-index: 7; top: var(--kho-pop-top, 64px); right: 10px; width: 240px; max-height: calc(100% - var(--kho-pop-top, 64px) - 12px); overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14); }
+.kho-pcg { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kho-pcrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.kho-glabel { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.btn.kho-on { border-color: var(--primary); color: var(--primary); }
+
+.kho-foot { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.kho-foot kbd { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--row-hover-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+
+@media (max-width: 640px) {
+  .kho-more-btn { display: inline-flex; }
+  .kho-more { display: none; }
+  .kho-more.kho-more-open { display: flex; flex-direction: column; gap: 12px; flex-basis: 100%; }
+  .kho-slot { height: clamp(420px, 70vh, 640px); }
+  /* Điện thoại: thẻ ô nằm DƯỚI (chừa phần trên cho khung 3D). Bảng điều khiển cửa sổ nhóm gập sẵn, mở bằng nút "Tùy chọn" và che thẻ ô khi mở */
+  .kho-card, .kho-wrap.popmode .kho-card { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 46%; }
+  .kho-popctl-btn { display: inline-flex; }
+  .kho-popctl { display: none; top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 55%; }
+  .kho-popctl.kho-popctl-open { display: flex; }
+  .kho-popctl-open ~ .kho-card { display: none; }
+  .kho-wrap.popmode { inset: 8px; }
+  .kho-tool-lot { max-width: none; flex-basis: 100%; }
+}
+
+/* Lịch sử vị trí */
+.kho-gd-chuyen { font-variant-numeric: tabular-nums; }

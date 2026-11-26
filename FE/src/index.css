@@ -180,30 +180,78 @@ a {
   transform: rotate(0deg);
 }
 
-/* Đầu mục CẤP 1 (nhóm): có đường kẻ + khoảng cách phía trên, chữ hoa nhỏ, đậm nhẹ.
-   Chiều cao cố định -> lúc thu gọn chỉ còn thấy đường kẻ phân nhóm, nhưng KHÔNG đổi
-   chiều cao khi mở rộng (nếu ép height:0 lúc thu gọn thì menu sẽ bị tụt xuống khi hover). */
-.sidebar-section {
-  height: 30px;
-  margin-top: 12px;
-  padding: 10px 20px 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 11px;
-  line-height: 15px;
+/* MỤC CHA (Xử lý hàng / Quản lý vị trí kho / Quản trị danh mục): cả 3 cùng 1 kiểu - vạch + chữ xanh ngọc,
+   bấm để xổ / thu mục con. Chiều cao CỐ ĐỊNH ở cả 2 trạng thái thu gọn / mở rộng sidebar (không nhảy khi hover).
+   Vạch phân nhóm vẽ bằng ::before để lúc thu gọn thụt ngắn 2 đầu lại mà không đẩy icon. */
+.sidebar-group {
+  position: relative;
+  margin-top: 10px;
+  padding-top: 6px;
+}
+.sidebar-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #14b8a6;
+}
+.sidebar-group:first-child {
+  margin-top: 0;
+}
+
+.sidebar-parent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 16px 0 20px;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: #5eead4;
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #7c8798;
+  letter-spacing: 0.05em;
+  text-align: left;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.sidebar-section:first-child {
-  margin-top: 0;
-  border-top: 0;
+.sidebar-parent-title {
+  flex: 1;
 }
 
-/* Mục CẤP 2 (link): thụt vào sâu hơn tiêu đề nhóm để thấy rõ phân cấp.
-   Màu / hover / trạng thái active giữ NGUYÊN như cũ. */
+.sidebar-parent-chevron {
+  display: flex;
+  flex-shrink: 0;
+}
+.sidebar-parent-chevron .sidebar-link-icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease;
+}
+.sidebar-parent.open .sidebar-parent-chevron .sidebar-link-icon {
+  transform: rotate(90deg);
+}
+
+@media (hover: hover) {
+  .sidebar-parent:hover {
+    background: var(--sidebar-active);
+  }
+}
+
+/* Mục cha đang thu nhưng chứa trang đang xem: tô nền để vẫn biết mình đang ở đâu */
+.sidebar-parent.has-active:not(.open) {
+  background: var(--sidebar-active);
+  border-left-color: #14b8a6;
+}
+
+/* Mục con (link): thụt vào sâu hơn mục cha để thấy rõ phân cấp. */
 .sidebar-link {
   display: flex;
   align-items: center;
@@ -333,6 +381,7 @@ a {
      bề ngang) sao cho nhìn vẫn cân giữa trong thanh 68px, và cho nó trượt cùng nhịp với width. */
   .sidebar-brand-row,
   .sidebar-footer,
+  .sidebar-parent,
   .sidebar-link {
     transition: padding-left 0.2s ease-out;
   }
@@ -358,15 +407,13 @@ a {
 
   /* CHỈ đổi theo chiều ngang (thu ngắn đường kẻ lại) - tuyệt đối không đụng
      height / margin-top / padding dọc, nếu không menu sẽ nhảy khi mở rộng. */
-  .sidebar-panel:not(.expanded) .sidebar-section {
-    margin-left: 14px;
-    margin-right: 14px;
-    padding-left: 0;
-    padding-right: 0;
-    border-top-color: rgba(255, 255, 255, 0.12);
+  .sidebar-panel:not(.expanded) .sidebar-group::before {
+    left: 14px;
+    right: 14px;
   }
 
   /* 22px: icon 18px nằm sau viền trái 3px -> tâm icon = 3 + 22 + 9 = 34 = giữa thanh 68px */
+  .sidebar-panel:not(.expanded) .sidebar-parent,
   .sidebar-panel:not(.expanded) .sidebar-link {
     padding-left: 22px;
   }
@@ -1575,3 +1622,14 @@ table.data-table {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Ô tìm kiếm dùng chung (components/SearchInput.jsx): kính lúp bên trái, nút × xóa bên phải */
+.search-input { position: relative; display: flex; align-items: center; }
+.search-input input { width: 100%; padding-left: 32px; padding-right: 30px; }
+.search-input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.search-input-clear { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.search-input-clear:hover { background: var(--row-hover-bg); color: var(--text); }
+.search-input-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14); }
+.search-input-item { padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.search-input-item:hover, .search-input-item.active { background: var(--row-hover-bg); }
+.search-input-more { padding: 6px 10px; font-size: 12px; color: var(--text-muted); }

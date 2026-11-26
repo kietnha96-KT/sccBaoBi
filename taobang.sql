@@ -105,6 +105,60 @@ CREATE TABLE BaoCao_LoiChiTiet (
 CREATE INDEX idx_baocao_loichitiet_baocao_id ON BaoCao_LoiChiTiet(baocao_id);
 CREATE INDEX idx_baocao_loichitiet_loai_loi_id ON BaoCao_LoiChiTiet(loai_loi_id);
 
+-- 8-10. VỊ TRÍ KHO (migration 009; danh mục ô sinh từ BE/data/kho-layout.json bằng
+--       BE/scripts/gen-vitrikho.js -> migration 010). Logic nhập/xuất/chuyển nằm ở Backend.
+-- 1. Danh mục ô vị trí. Sinh MỘT LẦN từ BE/data/kho-layout.json bằng BE/scripts/gen-vitrikho.js.
+--    Bố cục không gian (x, z, xoay) KHÔNG lưu ở đây, nằm ở kho-layout.json.
+CREATE TABLE ViTriKho (
+    id          SERIAL PRIMARY KEY,
+    ma_vi_tri   VARCHAR(30) NOT NULL UNIQUE,      -- K05-O03-T2 ; kệ sàn: S1-O03-T2-S4
+    khu         VARCHAR(20),
+    ke          VARCHAR(12) NOT NULL,             -- ma_ke: K01..K81, S1, S2
+    loai_ke     VARCHAR(10) NOT NULL CHECK (loai_ke IN ('selective', 'san')),
+    nhom        VARCHAR(50),                      -- NULL = kệ riêng; 'Drive-in 5' = kệ thuộc khối drive-in đó
+    o           INTEGER NOT NULL,                 -- ô dọc theo chiều dài kệ, bắt đầu từ 1
+    chieu_sau   INTEGER NOT NULL DEFAULT 1,       -- chỉ kệ sàn > 1; 1 = sát mặt lối đi
+    tang        INTEGER NOT NULL,                 -- 1 = thấp nhất
+    UNIQUE (ke, o, chieu_sau, tang)
+);
+CREATE INDEX idx_vitri_ke   ON ViTriKho(ke);
+CREATE INDEX idx_vitri_nhom ON ViTriKho(nhom);
+
+-- 2. Hiện trạng: lô nào đang nằm ở ô nào. 1 lô nhiều ô, 1 ô nhiều lô.
+--    KHO ĐỘC LẬP VỚI BẢNG Lo (migration 011): lô ở kho = (ma_vat_tu, so_lo) tự lưu ở đây, KHÔNG khóa ngoại sang Lo.
+--    Không có ràng buộc gì giữa SL trong kho và số lượng lô bên lựa. so_lo so khớp không phân biệt hoa/thường.
+CREATE TABLE Lo_ViTri (
+    id            SERIAL PRIMARY KEY,
+    ma_vat_tu     VARCHAR(20) NOT NULL,           -- không FK: chỉ khi NHẬP qua API mới đối chiếu danh mục VatTu
+    so_lo         VARCHAR(50) NOT NULL,
+    vi_tri_id     INTEGER NOT NULL REFERENCES ViTriKho(id),
+    so_luong      NUMERIC(12,2) CHECK (so_luong IS NULL OR so_luong >= 0),   -- NULL = chưa biết
+    cap_nhat_luc  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX uq_lovitri_lo_o ON Lo_ViTri (ma_vat_tu, lower(so_lo), vi_tri_id);
+CREATE INDEX idx_lovitri_lo ON Lo_ViTri (ma_vat_tu, lower(so_lo));
+CREATE INDEX idx_lovitri_vitri ON Lo_ViTri(vi_tri_id);
+
+-- 3. Sổ giao dịch (chỉ thêm, không sửa): đặt vào / lấy ra / chuyển / điều chỉnh.
+--    chuyen_di + chuyen_den là 2 dòng chung nhom_id (UUID) để ghép cặp một lần chuyển.
+CREATE TABLE ViTri_GiaoDich (
+    id                   SERIAL PRIMARY KEY,
+    ma_vat_tu            VARCHAR(20) NOT NULL,    -- cùng cách nhận diện lô như Lo_ViTri, không FK sang Lo
+    so_lo                VARCHAR(50) NOT NULL,
+    vi_tri_id            INTEGER NOT NULL REFERENCES ViTriKho(id),
+    thao_tac             VARCHAR(12) NOT NULL
+                         CHECK (thao_tac IN ('nhap', 'xuat', 'chuyen_di', 'chuyen_den', 'dieu_chinh')),
+    nhom_id              UUID,
+    so_luong             NUMERIC(12,2) CHECK (so_luong IS NULL OR so_luong >= 0),
+    nguoi_thuc_hien_id   INTEGER REFERENCES NhanSu(id),
+    ghi_chu              TEXT,
+    thoi_gian            TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_gd_lo_text ON ViTri_GiaoDich (ma_vat_tu, lower(so_lo));
+CREATE INDEX idx_gd_vitri   ON ViTri_GiaoDich(vi_tri_id);
+CREATE INDEX idx_gd_nhom    ON ViTri_GiaoDich(nhom_id);
+CREATE INDEX idx_gd_thoigian ON ViTri_GiaoDich(thoi_gian);
+
 -- ============================================
 -- GHI CHÚ CÔNG THỨC NĂNG SUẤT (dùng khi viết query dashboard):
 -- Năng suất chuẩn hóa 8h = (dat + hu_bo)
