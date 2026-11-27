@@ -89,7 +89,8 @@ export default function DashboardNhanSuPage() {
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
   const { data: nccData } = useFetch(() => listNhaCungCap({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
-  const nhanSuList = nhanSuData?.data;
+  // ô lọc bỏ nhân viên không làm xử lý hàng, trừ người đã có báo cáo cũ
+  const nhanSuList = nhanSuData?.data.filter((ns) => ns.vai_tro !== 'nhan_vien' || ns.xu_ly_hang || ns.co_bao_cao);
   const nccList = nccData?.data || [];
   const breakdownRows = breakdownData?.data || [];
   const loList = filters.ma_vat_tu

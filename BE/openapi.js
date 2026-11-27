@@ -264,8 +264,48 @@ const spec = {
     { name: 'BaoCao', description: 'Báo cáo lựa vật tư' },
     { name: 'Dashboard', description: '4 dashboard năng suất' },
     { name: 'ViTriKho', description: 'Vị trí kho: bản đồ ô, lô nằm ở ô nào, nhập/xuất/chuyển/điều chỉnh (đọc: mọi người dùng; ghi: admin hoặc thủ kho)' },
+    { name: 'XinNghi', description: 'Kê khai xin nghỉ (mọi vai trò XEM được đơn của mọi người; ghi: admin và nhân viên, thủ kho chỉ xem; tổng hợp tháng: nhân viên chỉ xem của mình)' },
   ],
   paths: {
+    '/api/xin-nghi': {
+      get: {
+        tags: ['XinNghi'],
+        summary: 'Danh sách đơn (các ngày cùng đợt gộp 1 dòng)',
+        parameters: [
+          { name: 'thang', in: 'query', schema: { type: 'string' }, description: 'YYYY-MM hoặc all' },
+          { name: 'trang_thai', in: 'query', schema: { type: 'string', enum: ['cho_duyet', 'da_duyet', 'tu_choi'] } },
+          { name: 'loai', in: 'query', schema: { type: 'string' } },
+          { name: 'nhansu_id', in: 'query', schema: { type: 'integer' }, description: 'Lọc theo người' },
+          pPage,
+        ],
+        responses: { 200: { description: 'OK' }, 403: responses.Forbidden },
+      },
+      post: {
+        tags: ['XinNghi'],
+        summary: 'Kê đơn (nhân viên: chờ duyệt, được tick kê hộ thì kê cho mọi nhân viên; admin kê hộ: duyệt luôn)',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['loai', 'ngay'], properties: { nhansu_id: { type: 'integer', description: 'Bắt buộc khi admin kê hộ; nhân viên được kê hộ thì chọn người, bỏ trống = chính mình' }, loai: { type: 'string', enum: ['nghi_phep', 'nghi_om', 'che_do_nu', 'di_tre', 've_som', 'quen_cham_cong'] }, ngay: { type: 'string', format: 'date' }, den_ngay: { type: 'string', format: 'date', description: 'Chỉ nghỉ phép / ốm' }, tu_gio: { type: 'string', example: '08:00' }, den_gio: { type: 'string', example: '10:00', description: 'Chỉ dùng cho quên chấm công (giờ ra); loại khác tự tính' }, phan_ngay: { type: 'number', enum: [1, 0.5, 0.25], description: 'Chỉ nghỉ phép; 0.5 / 0.25 cần tu_gio. Nghỉ ốm không nhập giờ' }, ly_do: { type: 'string' } } } } } },
+        responses: { 201: { description: 'Đã lưu' }, 400: responses.BadRequest, 403: responses.Forbidden, 409: { description: 'Trùng đơn hoặc hết số lần trong tháng' } },
+      },
+    },
+    '/api/xin-nghi/{id}': {
+      put: { tags: ['XinNghi'], summary: 'Sửa 1 ngày (body như POST, không có den_ngay)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound } },
+      delete: { tags: ['XinNghi'], summary: 'Xóa đơn (nhân viên: cả đợt; admin: 1 ngày, hoặc ca_dot=true)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'ca_dot', in: 'query', schema: { type: 'boolean' } }], responses: { 200: { description: 'OK' }, 403: responses.Forbidden, 404: responses.NotFound } },
+    },
+    '/api/xin-nghi/{id}/trang-thai': {
+      patch: { tags: ['XinNghi'], summary: 'Duyệt / từ chối / bỏ duyệt cả đợt - admin', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['trang_thai'], properties: { trang_thai: { type: 'string', enum: ['cho_duyet', 'da_duyet', 'tu_choi'] }, ghi_chu_duyet: { type: 'string' } } } } } }, responses: { 200: { description: 'OK' }, 403: responses.Forbidden, 404: responses.NotFound } },
+    },
+    '/api/xin-nghi/con-lai': {
+      get: { tags: ['XinNghi'], summary: 'Số lần đã dùng trong tháng của ngày chọn', parameters: [{ name: 'ngay', in: 'query', required: true, schema: { type: 'string', format: 'date' } }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'bo_qua_id', in: 'query', schema: { type: 'integer' }, description: 'Đơn đang sửa' }], responses: { 200: { description: 'OK' } } },
+    },
+    '/api/xin-nghi/tong-hop': {
+      get: { tags: ['XinNghi'], summary: 'Tổng hợp tháng (chỉ cộng đơn đã duyệt). Admin: mọi nhân viên; nhân viên: chỉ của mình', parameters: [{ name: 'thang', in: 'query', required: true, schema: { type: 'string' }, description: 'YYYY-MM' }], responses: { 200: { description: 'OK' } } },
+    },
+    '/api/xin-nghi/export': {
+      get: { tags: ['XinNghi'], summary: 'Xuất Excel đơn xin nghỉ, mỗi dòng 1 ngày, cùng bộ lọc với danh sách', parameters: [{ name: 'thang', in: 'query', schema: { type: 'string' }, description: 'YYYY-MM, bỏ trống = tất cả' }, { name: 'nhansu_id', in: 'query', schema: { type: 'integer' } }, { name: 'loai', in: 'query', schema: { type: 'string' } }, { name: 'trang_thai', in: 'query', schema: { type: 'string' } }], responses: { 200: { description: 'File Excel' } } },
+    },
+    '/api/xin-nghi/tong-hop/export': {
+      get: { tags: ['XinNghi'], summary: 'Xuất Excel tháng: sheet tổng hợp + chi tiết (nhân viên chỉ ra của mình)', parameters: [{ name: 'thang', in: 'query', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'File Excel' } } },
+    },
     '/api/test-db': {
       get: {
         tags: ['Auth'],
@@ -384,6 +424,9 @@ const spec = {
                   username: { type: 'string' },
                   password: { type: 'string' },
                   vai_tro: { type: 'string', enum: ['admin', 'nhan_vien', 'thu_kho'], default: 'nhan_vien' },
+                  gioi_tinh: { type: 'string', enum: ['nam', 'nu'], default: 'nu' },
+                  duoc_ke_ho: { type: 'boolean', description: 'Được kê xin nghỉ hộ (chỉ nhân viên)' },
+                  xu_ly_hang: { type: 'boolean', default: true, description: 'Có làm xử lý hàng; false = không chọn được vào báo cáo' },
                 },
               },
             },
@@ -404,11 +447,11 @@ const spec = {
       },
       put: {
         tags: ['NhanSu'],
-        summary: 'Admin sửa họ tên / vai trò',
+        summary: 'Admin sửa họ tên / vai trò / giới tính / quyền kê hộ',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { type: 'object', required: ['ho_ten'], properties: { ho_ten: { type: 'string' }, vai_tro: { type: 'string', enum: ['admin', 'nhan_vien', 'thu_kho'] } } } } },
+          content: { 'application/json': { schema: { type: 'object', required: ['ho_ten'], properties: { ho_ten: { type: 'string' }, vai_tro: { type: 'string', enum: ['admin', 'nhan_vien', 'thu_kho'] }, gioi_tinh: { type: 'string', enum: ['nam', 'nu'] }, duoc_ke_ho: { type: 'boolean' }, xu_ly_hang: { type: 'boolean' } } } } },
         },
         responses: { 200: { description: 'OK' }, 400: responses.BadRequest, 403: responses.Forbidden, 404: responses.NotFound },
       },

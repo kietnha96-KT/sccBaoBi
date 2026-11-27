@@ -81,7 +81,10 @@ export default function BaoCaoListPage() {
   const thuKhoList = thuKhoData || [];
   const vatTuList = vatTuData?.data;
   const loaiLoiList = loaiLoiData?.data;
-  const nhanSuList = (nhanSuData?.data || []).filter((ns) => ns.vai_tro === 'nhan_vien');
+  // ô LỌC: giữ cả người nay không còn xử lý hàng nhưng đã có báo cáo, để dò lại được dữ liệu cũ
+  const nhanSuList = (nhanSuData?.data || []).filter(
+    (ns) => ns.vai_tro === 'nhan_vien' && (ns.xu_ly_hang || ns.co_bao_cao)
+  );
   const loList = filters.ma_vat_tu
     ? (loData?.data || []).filter((l) => l.ma_vat_tu === filters.ma_vat_tu)
     : loData?.data || [];

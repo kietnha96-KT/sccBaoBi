@@ -4,6 +4,7 @@ import { useFetch } from '../hooks/useFetch';
 import { ALL_LIMIT } from '../constants';
 import Alert from './Alert';
 import TruncatedText from './TruncatedText';
+import { TRANG_THAI, tenLoai, moTaGio } from '../xinNghi';
 
 const gioText = (t) => (t ? t.substring(0, 5) : '—');
 
@@ -35,6 +36,18 @@ export default function GioLamNgayDetail({ row, ngay }) {
         </dd>
         <dt>Số báo cáo:</dt>
         <dd>{formatSoLuong(row.so_bao_cao)}</dd>
+        <dt>Xin nghỉ ngày này:</dt>
+        <dd>
+          {row.xin_nghi?.length
+            ? row.xin_nghi.map((x) => (
+                <div key={x.id} className="mb-8">
+                  <strong>{tenLoai(x.loai)}</strong>: {moTaGio(x)}{' '}
+                  <span className={`badge ${TRANG_THAI[x.trang_thai].badge}`}>{TRANG_THAI[x.trang_thai].ten}</span>
+                  {x.ly_do && <div className="field-hint">Lý do: {x.ly_do}</div>}
+                </div>
+              ))
+            : <span className="field-hint">Không kê</span>}
+        </dd>
       </dl>
 
       <p className="field-hint mb-12">

@@ -11,6 +11,7 @@ import { useFetch } from '../hooks/useFetch';
 import Alert from './Alert';
 import NumberInput from './NumberInput';
 import SearchableSelect from './SearchableSelect';
+import TimeSelect from './TimeSelect';
 import VatTuFilterFields from './VatTuFilterFields';
 import { ALL_LIMIT } from '../constants';
 import { loValue, loLabel } from '../selectHelpers';
@@ -23,47 +24,6 @@ const todayStr = () => {
 };
 
 const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-const GIO_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const PHUT_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-
-// Dropdown chọn giờ:phút theo định dạng 24h. Giá trị giữ trong form vẫn là chuỗi "HH:MM" (hoặc "").
-// Chọn 1 trong 2 ô -> ô còn lại tự lấy "00". Nút "Bỏ giờ" để xóa trắng cả cặp.
-function TimeSelect({ label, value, onChange, disabled, required }) {
-  const [h, m] = value && value.includes(':') ? value.split(':') : ['', ''];
-  const setPart = (nh, nm) => {
-    if (!nh && !nm) return onChange('');
-    onChange(`${nh || '00'}:${nm || '00'}`);
-  };
-  return (
-    <div className="field">
-      <label>
-        {label}
-        {required && <span className="req">*</span>}
-      </label>
-      <div className="time-row">
-        <select value={h} onChange={(e) => setPart(e.target.value, m)} disabled={disabled} aria-label={`${label} - giờ`}>
-          <option value="">Giờ</option>
-          {GIO_OPTIONS.map((x) => (
-            <option key={x} value={x}>{x}</option>
-          ))}
-        </select>
-        <span>:</span>
-        <select value={m} onChange={(e) => setPart(h, e.target.value)} disabled={disabled} aria-label={`${label} - phút`}>
-          <option value="">Phút</option>
-          {PHUT_OPTIONS.map((x) => (
-            <option key={x} value={x}>{x}</option>
-          ))}
-        </select>
-        {value && !disabled && !required && (
-          <button type="button" className="btn btn-sm" onClick={() => onChange('')}>
-            Bỏ giờ
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Kiểm tra cặp giờ trước khi gửi lên server (đồng bộ với normalizeGioLamViec ở backend).
 // Giờ bắt đầu và giờ kết thúc là BẮT BUỘC.
@@ -103,8 +63,12 @@ export default function BaoCaoForm({ id, onDone }) {
   const { data: vatTuData } = useFetch(() => listVatTu({ limit: ALL_LIMIT }), []);
   const { data: nhanSuData } = useFetch(() => listNhanSu({ limit: ALL_LIMIT }), []);
   const vatTuList = vatTuData?.data;
-  // Chỉ cho tick chọn người có vai trò "nhân viên" (không hiện admin / thủ kho)
-  const nhanSuList = (nhanSuData?.data || []).filter((ns) => ns.vai_tro === 'nhan_vien');
+  // người đã có sẵn trong báo cáo đang sửa (vẫn hiện dù nay không còn làm xử lý hàng)
+  const [thamGiaCu, setThamGiaCu] = useState([]);
+  // Chỉ cho tick chọn "nhân viên" có làm xử lý hàng (không hiện admin / thủ kho)
+  const nhanSuList = (nhanSuData?.data || []).filter(
+    (ns) => ns.vai_tro === 'nhan_vien' && (ns.xu_ly_hang || thamGiaCu.includes(ns.id))
+  );
 
   const [maVatTuFilter, setMaVatTuFilter] = useState('');
   const [loList, setLoList] = useState([]);
@@ -143,6 +107,7 @@ export default function BaoCaoForm({ id, onDone }) {
     getBaoCao(id)
       .then((bc) => {
         if (huy) return;
+        setThamGiaCu(bc.nhansu_tham_gia.map((n) => n.id));
         setForm({
           ngay: bc.ngay.substring(0, 10),
           lo_id: bc.lo_id,

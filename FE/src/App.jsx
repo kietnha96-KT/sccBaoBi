@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -20,6 +20,8 @@ import DashboardBaoCongLoPage from './pages/DashboardBaoCongLoPage';
 import DashboardHuBoPage from './pages/DashboardHuBoPage';
 import DashboardGioLamNgayPage from './pages/DashboardGioLamNgayPage';
 import KhoLichSuPage from './pages/KhoLichSuPage';
+import XinNghiPage from './pages/XinNghiPage';
+import XinNghiTongHopPage from './pages/XinNghiTongHopPage';
 
 // Bản đồ kho kéo theo thư viện three.js (nặng) -> chỉ tải khi vào trang này, không làm chậm các trang còn lại
 const BanDoKhoPage = lazy(() => import('./pages/BanDoKhoPage'));
@@ -41,9 +43,19 @@ function App() {
             <Route index element={<Navigate to="/baocao" replace />} />
             <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
 
-            <Route path="/baocao" element={<BaoCaoListPage />} />
-            <Route path="/baocao/moi" element={<BaoCaoFormPage />} />
-            <Route path="/baocao/:id/sua" element={<BaoCaoFormPage />} />
+            {/* Phần xử lý hàng: nhân viên không làm xử lý hàng được chuyển sang trang xin nghỉ */}
+            <Route
+              element={
+                <ProtectedRoute xuLyHang>
+                  <Outlet />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/baocao" element={<BaoCaoListPage />} />
+              <Route path="/baocao/moi" element={<BaoCaoFormPage />} />
+              <Route path="/baocao/:id/sua" element={<BaoCaoFormPage />} />
+              <Route path="/dashboard/bao-cong" element={<DashboardBaoCongLoPage />} />
+            </Route>
 
             <Route
               path="/dashboard/nhan-su"
@@ -70,8 +82,6 @@ function App() {
               }
             />
 
-            <Route path="/dashboard/bao-cong" element={<DashboardBaoCongLoPage />} />
-
             <Route
               path="/dashboard/hu-bo"
               element={
@@ -89,6 +99,10 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Xin nghỉ: mọi vai trò xem được; thủ kho chỉ xem (BE chặn ghi) */}
+            <Route path="/xin-nghi" element={<XinNghiPage />} />
+            <Route path="/xin-nghi/tong-hop" element={<XinNghiTongHopPage />} />
 
             {/* Quản lý vị trí kho: mọi vai trò xem được; ghi (nhập/xuất/chuyển) chỉ admin + thủ kho, BE chặn bằng requireStaff */}
             <Route

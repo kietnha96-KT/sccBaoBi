@@ -28,9 +28,11 @@ export function AuthProvider({ children }) {
   // Nhóm "quyền như admin" (admin + thủ kho): dashboard năng suất / hư bỏ, thao tác
   // báo cáo, danh mục Lô + Loại lỗi. Các danh mục còn lại vẫn chỉ admin.
   const isStaff = isAdmin || isThuKho;
+  // Nhân viên không làm xử lý hàng (vd bốc vác): ẩn cả mục "Xử lý hàng". Đổi tick thì đăng nhập lại mới thấy.
+  const khongXuLyHang = isNhanVien && user?.xu_ly_hang === false;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, isThuKho, isNhanVien, isStaff }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, isThuKho, isNhanVien, isStaff, khongXuLyHang }}>
       {children}
     </AuthContext.Provider>
   );

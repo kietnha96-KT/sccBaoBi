@@ -16,6 +16,7 @@ const baocaoRoutes = require('./routes/baocao.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const vitriRoutes = require('./routes/vitri.routes');
 const khoRoutes = require('./routes/kho.routes');
+const xinNghiRoutes = require('./routes/xinNghi.routes');
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use('/api/baocao', baocaoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/vi-tri', vitriRoutes);
 app.use('/api/kho', khoRoutes);
+app.use('/api/xin-nghi', xinNghiRoutes);
 
 // 404 cho route không tồn tại
 app.use('/api', (req, res) => {

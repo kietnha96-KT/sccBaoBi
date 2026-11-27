@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import SelectionActionBar from '../components/SelectionActionBar';
 import SortableTh from '../components/SortableTh';
 import GioLamNgayDetail from '../components/GioLamNgayDetail';
+import { TRANG_THAI, tenLoai, moTaGio } from '../xinNghi';
 
 const gioText = (t) => (t ? t.substring(0, 5) : '—');
 
@@ -108,6 +109,7 @@ export default function DashboardGioLamNgayPage() {
               <thead>
                 <tr>
                   <SortableTh label="Nhân sự" sortKey="ho_ten" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <th>Xin nghỉ</th>
                   <SortableTh label="Giờ vào" sortKey="gio_vao" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Giờ ra" sortKey="gio_ra" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Số báo cáo" sortKey="so_bao_cao" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
@@ -117,6 +119,19 @@ export default function DashboardGioLamNgayPage() {
                 {rows.map((r) => (
                   <tr key={r.nhansu_id} {...getRowProps(r.nhansu_id)}>
                     <td>{r.ho_ten}</td>
+                    <td>
+                      {r.xin_nghi?.length
+                        ? r.xin_nghi.map((x) => (
+                            <div key={x.id} className="nowrap">
+                              <span className={`badge ${TRANG_THAI[x.trang_thai].badge}`}>{tenLoai(x.loai)}</span>{' '}
+                              <span className="field-hint">
+                                {moTaGio(x)}
+                                {x.trang_thai === 'cho_duyet' && ' (chờ duyệt)'}
+                              </span>
+                            </div>
+                          ))
+                        : '-'}
+                    </td>
                     {Number(r.so_bao_cao) === 0 ? (
                       <td colSpan={2}>
                         <span className="badge badge-muted">Không có báo cáo</span>
@@ -140,7 +155,7 @@ export default function DashboardGioLamNgayPage() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="empty-state">
+                    <td colSpan={5} className="empty-state">
                       Không có dữ liệu
                     </td>
                   </tr>

@@ -11,7 +11,7 @@ import SelectionActionBar from '../components/SelectionActionBar';
 import SortableTh from '../components/SortableTh';
 import { PAGE_SIZE } from '../constants';
 
-const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien' };
+const emptyForm = { ho_ten: '', username: '', password: '', vai_tro: 'nhan_vien', gioi_tinh: 'nu', duoc_ke_ho: false, xu_ly_hang: true };
 
 const ROLE_BADGE = {
   admin: { cls: 'badge-admin', label: 'Admin' },
@@ -53,7 +53,8 @@ export default function NhanSuPage() {
   }
 
   function openEdit(row) {
-    setForm({ ho_ten: row.ho_ten, vai_tro: row.vai_tro });
+    const { ho_ten, vai_tro, gioi_tinh, duoc_ke_ho, xu_ly_hang } = row;
+    setForm({ ho_ten, vai_tro, gioi_tinh, duoc_ke_ho, xu_ly_hang });
     setFormError('');
     setModal({ edit: row });
   }
@@ -66,7 +67,8 @@ export default function NhanSuPage() {
       if (modal === 'create') {
         await createNhanSu(form);
       } else if (modal?.edit) {
-        await updateNhanSu(modal.edit.id, { ho_ten: form.ho_ten, vai_tro: form.vai_tro });
+        const { ho_ten, vai_tro, gioi_tinh, duoc_ke_ho, xu_ly_hang } = form;
+        await updateNhanSu(modal.edit.id, { ho_ten, vai_tro, gioi_tinh, duoc_ke_ho, xu_ly_hang });
       }
       setModal(null);
       setSelectedRowId(null);
@@ -164,6 +166,9 @@ export default function NhanSuPage() {
                   <SortableTh label="Họ tên" sortKey="ho_ten" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Username" sortKey="username" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <SortableTh label="Vai trò" sortKey="vai_tro" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <th>Giới tính</th>
+                  <th>Xử lý hàng</th>
+                  <th>Kê hộ nghỉ</th>
                   <SortableTh label="Ngày tạo" sortKey="created_at" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
@@ -178,12 +183,15 @@ export default function NhanSuPage() {
                         {(ROLE_BADGE[row.vai_tro] || ROLE_BADGE.nhan_vien).label}
                       </span>
                     </td>
+                    <td>{row.gioi_tinh === 'nam' ? 'Nam' : 'Nữ'}</td>
+                    <td>{row.vai_tro !== 'nhan_vien' ? '-' : row.xu_ly_hang ? 'Có' : 'Không'}</td>
+                    <td>{row.duoc_ke_ho ? <span className="badge badge-success">Được kê hộ</span> : '-'}</td>
                     <td>{new Date(row.created_at).toLocaleDateString('vi-VN')}</td>
                   </tr>
                 ))}
                 {data?.data.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="empty-state">
+                    <td colSpan={8} className="empty-state">
                       {search ? 'Không tìm thấy nhân sự phù hợp' : 'Chưa có nhân sự nào'}
                     </td>
                   </tr>
@@ -238,6 +246,33 @@ export default function NhanSuPage() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              <div className="field">
+                <label>Giới tính</label>
+                <select value={form.gioi_tinh} onChange={(e) => setForm({ ...form, gioi_tinh: e.target.value })}>
+                  <option value="nu">Nữ</option>
+                  <option value="nam">Nam</option>
+                </select>
+              </div>
+              {form.vai_tro === 'nhan_vien' && (
+                <label className="check-inline">
+                  <input
+                    type="checkbox"
+                    checked={form.xu_ly_hang}
+                    onChange={(e) => setForm({ ...form, xu_ly_hang: e.target.checked })}
+                  />
+                  Có làm xử lý hàng
+                </label>
+              )}
+              {form.vai_tro === 'nhan_vien' && (
+                <label className="check-inline">
+                  <input
+                    type="checkbox"
+                    checked={form.duoc_ke_ho}
+                    onChange={(e) => setForm({ ...form, duoc_ke_ho: e.target.checked })}
+                  />
+                  Được kê xin nghỉ hộ người khác
+                </label>
+              )}
             </div>
             <button type="submit" className="btn btn-primary mt-16" disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu'}

@@ -6,7 +6,10 @@ const ExcelJS = require('exceljs');
  * rows: mảng object, key khớp với columns[].key
  */
 async function sendExcel(res, { sheetName, fileName, columns, rows }) {
-  const workbook = new ExcelJS.Workbook();
+  await sendExcelSheets(res, { fileName, sheets: [{ sheetName, columns, rows }] });
+}
+
+function addSheet(workbook, { sheetName, columns, rows }) {
   const sheet = workbook.addWorksheet(sheetName || 'Sheet1');
 
   sheet.columns = columns;
@@ -18,6 +21,12 @@ async function sendExcel(res, { sheetName, fileName, columns, rows }) {
   sheet.columns.forEach((col) => {
     col.alignment = { vertical: 'middle' };
   });
+}
+
+// Như sendExcel nhưng nhiều sheet: sheets = [{ sheetName, columns, rows }]
+async function sendExcelSheets(res, { fileName, sheets }) {
+  const workbook = new ExcelJS.Workbook();
+  sheets.forEach((s) => addSheet(workbook, s));
 
   res.setHeader(
     'Content-Type',
@@ -32,4 +41,4 @@ async function sendExcel(res, { sheetName, fileName, columns, rows }) {
   res.end();
 }
 
-module.exports = { sendExcel };
+module.exports = { sendExcel, sendExcelSheets };

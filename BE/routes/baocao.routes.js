@@ -347,16 +347,26 @@ function parseReportBody(body) {
 
 // Chuẩn hóa danh sách "nhân sự tham gia": chỉ giữ người có vai trò 'nhan_vien'.
 // Admin / thủ kho KHÔNG được tính là người tham gia (họ chỉ là người đại diện nhập phiếu).
-async function resolveNhanVienIds(rawIds) {
+// Nhân viên không làm xử lý hàng (NhanSu.xu_ly_hang = false) không được chọn mới; giuLai = người đã có sẵn
+// trong báo cáo đang sửa thì vẫn giữ được (báo cáo cũ không bị ảnh hưởng).
+async function resolveNhanVienIds(rawIds, giuLai = []) {
   const uniq = [...new Set((rawIds || []).map(Number).filter((n) => Number.isInteger(n)))];
   if (uniq.length === 0) throw new AppError(400, 'Phải chọn ít nhất 1 nhân viên tham gia');
 
-  const result = await pool.query('SELECT id, vai_tro FROM NhanSu WHERE id = ANY($1::int[])', [uniq]);
+  const result = await pool.query(
+    'SELECT id, ho_ten, vai_tro, xu_ly_hang FROM NhanSu WHERE id = ANY($1::int[])',
+    [uniq]
+  );
   if (result.rows.length !== uniq.length) {
     throw new AppError(400, 'Một hoặc nhiều nhân sự được chọn không tồn tại');
   }
 
-  const nhanVienIds = result.rows.filter((r) => r.vai_tro === 'nhan_vien').map((r) => r.id);
+  const nhanVien = result.rows.filter((r) => r.vai_tro === 'nhan_vien');
+  const khongLam = nhanVien.find((r) => !r.xu_ly_hang && !giuLai.includes(r.id));
+  if (khongLam) {
+    throw new AppError(400, `${khongLam.ho_ten} không làm xử lý hàng, không chọn vào báo cáo được`);
+  }
+  const nhanVienIds = nhanVien.map((r) => r.id);
   if (nhanVienIds.length === 0) {
     throw new AppError(400, 'Phải chọn ít nhất 1 nhân viên tham gia');
   }
@@ -561,7 +571,8 @@ router.put(
     await assertCanModify(req, baocaoId);
 
     const payload = parseReportBody(req.body);
-    payload.nhansu_ids = await resolveNhanVienIds(payload.nhansu_ids);
+    const cu = await pool.query('SELECT nhansu_id FROM BaoCao_NhanSu WHERE baocao_id = $1', [baocaoId]);
+    payload.nhansu_ids = await resolveNhanVienIds(payload.nhansu_ids, cu.rows.map((r) => r.nhansu_id));
 
     const client = await pool.connect();
     try {

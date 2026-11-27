@@ -28,6 +28,7 @@ const ICON_PATHS = {
   warehouse: 'M3 21V8l9-5 9 5v13 M7 21v-9h10v9 M7 16h10',
   sliders: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6',
   chevron: 'M9 18l6-6-6-6',
+  leave: 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18 M9.5 13.5l5 5 M14.5 13.5l-5 5',
 };
 
 function Icon({ name }) {
@@ -71,6 +72,11 @@ const NAV_KHO = [
   { to: '/kho/ban-do', icon: 'map', label: 'Bản đồ kho' },
   { to: '/kho/lich-su', icon: 'list', label: 'Lịch sử vị trí' },
 ];
+// Xin nghỉ: mọi vai trò (thủ kho chỉ xem)
+const NAV_XINNGHI = [
+  { to: '/xin-nghi', end: true, icon: 'file', label: 'Đơn xin nghỉ' },
+  { to: '/xin-nghi/tong-hop', icon: 'list', label: 'Tổng hợp tháng' },
+];
 const NAV_DANHMUC = [
   { to: '/lo', icon: 'archive', label: 'Lô' },
   { to: '/loai-loi', icon: 'tag', label: 'Loại lỗi' },
@@ -113,15 +119,21 @@ function NavSection({ title, icon, items, open, active, onToggle, onNavigate }) 
 }
 
 export default function Layout() {
-  const { user, logout, isAdmin, isStaff } = useAuth();
+  const { user, logout, isAdmin, isStaff, khongXuLyHang } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Menu 2 cấp: 3 mục cha, lọc mục con theo vai trò (mục cha không còn mục con nào thì ẩn)
+  // Menu 2 cấp: các mục cha, lọc mục con theo vai trò (mục cha không còn mục con nào thì ẩn)
   const sections = [
-    { key: 'xuly', title: 'Xử lý hàng', icon: 'clipboard', items: [...NAV_MAIN, ...NAV_BAOCAO, ...(isStaff ? NAV_DASHBOARD : [])] },
+    {
+      key: 'xuly',
+      title: 'Xử lý hàng',
+      icon: 'clipboard',
+      items: khongXuLyHang ? [] : [...NAV_MAIN, ...NAV_BAOCAO, ...(isStaff ? NAV_DASHBOARD : [])],
+    },
     { key: 'kho', title: 'Quản lý vị trí kho', icon: 'warehouse', items: NAV_KHO },
+    { key: 'xinnghi', title: 'Xin nghỉ', icon: 'leave', items: NAV_XINNGHI },
     {
       key: 'danhmuc',
       title: 'Quản trị danh mục',

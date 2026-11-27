@@ -36,4 +36,12 @@ function requireStaff(req, res, next) {
   next();
 }
 
-module.exports = { authenticateToken, requireAdmin, requireStaff };
+// Cho phép admin HOẶC nhân viên (thao tác GHI của xin nghỉ: thủ kho chỉ được xem).
+function requireAdminOrNhanVien(req, res, next) {
+  if (!req.user || !['admin', 'nhan_vien'].includes(req.user.vai_tro)) {
+    return next(new AppError(403, 'Chức năng xin nghỉ chỉ dành cho nhân viên và admin'));
+  }
+  next();
+}
+
+module.exports = { authenticateToken, requireAdmin, requireStaff, requireAdminOrNhanVien };

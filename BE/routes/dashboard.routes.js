@@ -865,11 +865,21 @@ function buildGioLamNgayQuery(query) {
       ns.id AS nhansu_id, ns.ho_ten,
       MIN(bc.tg_bat_dau) AS gio_vao,
       MAX(bc.tg_ket_thuc) AS gio_ra,
-      COUNT(bc.id) AS so_bao_cao
+      COUNT(bc.id) AS so_bao_cao,
+      -- đơn xin nghỉ đã kê cho ngày này (chờ duyệt + đã duyệt; thủ kho chỉ xem)
+      (
+        SELECT COALESCE(json_agg(json_build_object(
+          'id', x.id, 'loai', x.loai, 'tu_gio', x.tu_gio, 'den_gio', x.den_gio,
+          'ly_do', x.ly_do, 'trang_thai', x.trang_thai
+        ) ORDER BY x.tu_gio NULLS FIRST, x.id), '[]')
+        FROM XinNghi x
+        WHERE x.nhansu_id = ns.id AND x.ngay = $1 AND x.trang_thai <> 'tu_choi'
+      ) AS xin_nghi
     FROM NhanSu ns
     LEFT JOIN BaoCao_NhanSu bn ON bn.nhansu_id = ns.id
     LEFT JOIN BaoCao bc ON bc.id = bn.baocao_id AND bc.ngay = $1
-    WHERE ns.vai_tro = 'nhan_vien'
+    -- người không làm xử lý hàng chỉ hiện nếu ngày đó thật sự có báo cáo (dữ liệu cũ)
+    WHERE ns.vai_tro = 'nhan_vien' AND (ns.xu_ly_hang OR bc.id IS NOT NULL)
     GROUP BY ns.id, ns.ho_ten
     ORDER BY ns.ho_ten ASC
   `;

@@ -61,4 +61,4 @@ const BC_CALC_CTE = `
   )
 `;
 
-module.exports = { BC_CALC_CTE };
+module.exports = { BC_CALC_CTE, GIO_NGHI_TRUA_BAT_DAU, GIO_NGHI_TRUA_KET_THUC };

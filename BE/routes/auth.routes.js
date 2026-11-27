@@ -17,7 +17,7 @@ router.post(
     }
 
     const result = await pool.query(
-      'SELECT id, ho_ten, username, password, vai_tro FROM NhanSu WHERE username = $1',
+      'SELECT id, ho_ten, username, password, vai_tro, xu_ly_hang FROM NhanSu WHERE username = $1',
       [username]
     );
     const user = result.rows[0];
@@ -40,7 +40,8 @@ router.post(
       expiresIn: process.env.JWT_EXPIRES_IN || '8h',
     });
 
-    res.json({ token, user: payload });
+    // xu_ly_hang chỉ để FE ẩn/hiện menu, không đưa vào token (BE luôn đọc lại từ DB khi cần chặn)
+    res.json({ token, user: { ...payload, xu_ly_hang: user.xu_ly_hang } });
   }
 );
 
@@ -50,7 +51,7 @@ router.get(
   authenticateToken,
   async (req, res) => {
     const result = await pool.query(
-      'SELECT id, ho_ten, username, vai_tro, created_at FROM NhanSu WHERE id = $1',
+      'SELECT id, ho_ten, username, vai_tro, xu_ly_hang, created_at FROM NhanSu WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows[0]) {
